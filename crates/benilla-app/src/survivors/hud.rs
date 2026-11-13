@@ -708,7 +708,8 @@ pub(super) fn setup_hud(
                     ..default()
                 },
             ));
-            root.spawn(centered(f, "Click a card, or press 1, 2 or 3", 14.0, DIM));
+            // Three cards, or four when luck deals one more.
+            root.spawn(centered(f, "Click a card, or press its number", 14.0, DIM));
         });
 
     // --- Pause. ---
@@ -816,6 +817,11 @@ pub(super) fn setup_hud(
                 }
             });
             root.spawn((OverStats, centered(f, "", 15.0, DIM)));
+            // What the run earned toward the account's professions.
+            root.spawn((
+                super::professions::OverAchievements,
+                centered(f, "", 16.0, GOLD),
+            ));
             root.spawn((
                 edged_button(UiAction::MainMenu, BUTTON, GOLD),
                 Node {
@@ -895,7 +901,12 @@ pub(super) fn menu_preview(
     );
 }
 
-pub(super) fn start_run(run: &mut Run, selection: &mut Selection) -> bool {
+/// Begin a run with the picked hero, carrying `bonuses` from the account's professions.
+pub(super) fn start_run(
+    run: &mut Run,
+    selection: &mut Selection,
+    bonuses: survivors_professions::Bonuses,
+) -> bool {
     let (Some(class), Some(&(_, race, _))) = (
         selection.class_def(),
         selection.look.and_then(|i| selection.looks.get(i)),
@@ -909,6 +920,7 @@ pub(super) fn start_run(run: &mut Run, selection: &mut Selection) -> bool {
         class,
         race,
         next_guid,
+        bonuses,
         ..Run::default()
     };
     run.abilities.push(Owned {
@@ -947,8 +959,14 @@ fn choices_for(run: &Run, rng: &mut Rng) -> Vec<Choice> {
             }
         }
     }
-    let mut out = Vec::with_capacity(3);
-    while out.len() < 3 && !pool.is_empty() {
+    // Luck (from Enchanting) is the percent chance of a fourth card.
+    let deal = if rng.f32() * 100.0 < run.stats().luck {
+        4
+    } else {
+        3
+    };
+    let mut out = Vec::with_capacity(deal);
+    while out.len() < deal && !pool.is_empty() {
         let total: f32 = pool.iter().map(|(_, w)| w).sum();
         let mut pick = rng.f32() * total;
         let mut idx = pool.len() - 1;
@@ -1053,10 +1071,15 @@ pub(super) fn keys(
     mut selection: ResMut<Selection>,
     mut run: ResMut<Run>,
     mut next: ResMut<NextState<Phase>>,
+    profile: Res<super::professions::Profile>,
+    panel: Res<super::professions::Panel>,
 ) {
     match phase.get() {
         Phase::Menu => {
-            if keys.just_pressed(KeyCode::Enter) && start_run(&mut run, &mut selection) {
+            if keys.just_pressed(KeyCode::Enter)
+                && !panel.open
+                && start_run(&mut run, &mut selection, profile.bonuses())
+            {
                 next.set(Phase::Playing);
             }
         }

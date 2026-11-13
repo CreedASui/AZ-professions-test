@@ -505,7 +505,8 @@ pub(super) fn animate_cards(
     }
 }
 
-/// A click on a card, or 1/2/3: start its burst; the choice applies when it finishes.
+/// A click on a card, or 1/2/3 (4 when luck dealt a fourth): start its burst; the choice applies
+/// when it finishes.
 pub(super) fn choose_card(
     phase: Res<State<Phase>>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -520,9 +521,14 @@ pub(super) fn choose_card(
         .iter()
         .find(|(c, i)| **i == Interaction::Pressed && c.t >= DEAL_SECS)
         .map(|(c, _)| c.index);
-    for (i, key) in [KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3]
-        .into_iter()
-        .enumerate()
+    for (i, key) in [
+        KeyCode::Digit1,
+        KeyCode::Digit2,
+        KeyCode::Digit3,
+        KeyCode::Digit4,
+    ]
+    .into_iter()
+    .enumerate()
     {
         if keys.just_pressed(key) {
             pick = Some(i);

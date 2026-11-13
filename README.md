@@ -46,6 +46,12 @@ minutes. **No server, no login, no account** — fully offline and self-containe
 - **A camera you can free:** locked top-down by default with the hero facing the cursor. **C**
   unlocks it to swing and tilt, and the wheel zooms from over the shoulder out to 70 yards.
 - A light sharpen-and-colour pass over the picture (**G** toggles it).
+- **Professions: progress that carries over.** Runs earn achievements, achievements earn points,
+  and points buy recipes in six professions (Alchemy, Blacksmithing, Enchanting, Engineering,
+  Leatherworking, Tailoring). Each profession's best recipe adds a permanent bonus to every run on
+  the account: Lesser Magic Wand +5 Luck → Greater Magic Wand +10 Luck, Rough Dynamite +10% Area →
+  Coarse Dynamite +20% Area, and so on. Open it from **Professions** under the zone list. See
+  [PROFESSIONS.md](PROFESSIONS.md).
 
 ## Play it
 
@@ -72,7 +78,7 @@ Run `make` (or `make help`) to list every target.
 
 See [CONTROLS.md](CONTROLS.md). The short version: **WASD** to move, **Space** to jump, **F**
 for your class's movement spell, the **mouse wheel** to zoom, **C** to unlock the camera, **Esc**
-to pause, **1/2/3** to pick a level-up card.
+to pause, **1/2/3** to pick a level-up card (**4** when luck deals a fourth).
 
 ## The game data (not in this repo)
 

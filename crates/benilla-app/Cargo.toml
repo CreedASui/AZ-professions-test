@@ -27,6 +27,8 @@ webgpu = ["bevy/webgpu", "benilla-world/webgpu"]
 web-time = "1"
 anyhow.workspace = true
 benilla-ui = { path = "../benilla-ui" }
+# Account-wide professions for the survivors mode: achievement points across runs buy permanent bonuses.
+survivors-professions = { path = "../survivors-professions" }
 bevy.workspace = true
 wgpu.workspace = true
 bevy_egui = { version = "0.39", optional = true }

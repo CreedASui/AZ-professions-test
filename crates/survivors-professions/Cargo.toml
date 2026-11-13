@@ -1,0 +1,14 @@
+[package]
+name = "survivors-professions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Account-wide professions for Azeroth Survivors: achievement points earned across runs buy recipe tiers whose bonuses carry into every run"
+
+[lints]
+workspace = true
+
+# No dependencies on purpose: the rules (what a recipe costs, what it needs, what it gives, what an
+# achievement asks for) are plain data and plain functions, testable in a second and portable to
+# any other build of the game.
+[dependencies]

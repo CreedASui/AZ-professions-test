@@ -16,6 +16,7 @@ mod hud;
 mod menu;
 mod minimap;
 mod mobility;
+mod professions;
 mod units;
 
 use benilla_world::schedule::WorldStage;
@@ -50,11 +51,21 @@ impl Plugin for SurvivorsPlugin {
             .init_resource::<enemies::Spawner>()
             .init_resource::<hud::Offer>()
             .init_resource::<cards::PendingPick>()
+            .init_resource::<professions::Profile>()
+            .init_resource::<professions::Panel>()
+            .init_resource::<professions::RunReport>()
             .add_message::<abilities::Hit>()
             .add_message::<enemies::Loot>()
             .add_plugins(bevy::ui_render::UiMaterialPlugin::<hud::SweepUiMaterial>::default())
             .add_plugins(bevy::ui_render::UiMaterialPlugin::<fill::FillMaterial>::default())
-            .add_systems(Startup, hud::setup_hud)
+            .add_systems(
+                Startup,
+                (
+                    hud::setup_hud,
+                    professions::setup_panel,
+                    professions::load_profile,
+                ),
+            )
             .add_systems(Update, hero::daylight)
             .add_systems(
                 Update,
@@ -131,11 +142,31 @@ impl Plugin for SurvivorsPlugin {
                     .chain()
                     .after(hud::show_panels),
             )
+            .add_systems(
+                Update,
+                (
+                    professions::panel_clicks,
+                    professions::build_panel,
+                    professions::show_panel,
+                    professions::hover_cells,
+                    professions::refresh_hint,
+                    professions::refresh_results_line,
+                    professions::record_on_exit,
+                )
+                    .chain()
+                    .after(WorldStage::Input)
+                    // In the frame Quit game is pressed, before the app closes.
+                    .after(hud::buttons),
+            )
             .add_systems(OnEnter(Phase::Playing), unpause)
             .add_systems(OnEnter(Phase::LevelUp), (pause, hud::roll_offer))
             .add_systems(OnEnter(Phase::Paused), pause)
-            .add_systems(OnEnter(Phase::GameOver), unpause)
-            .add_systems(OnEnter(Phase::Menu), (unpause, reset_run));
+            .add_systems(OnEnter(Phase::GameOver), (unpause, professions::record_run))
+            // A run left from the pause menu still counts; this must see it before the reset.
+            .add_systems(
+                OnEnter(Phase::Menu),
+                (unpause, professions::record_run, reset_run).chain(),
+            );
         if let Some(auto) = auto::from_env() {
             app.insert_resource(auto)
                 .add_systems(
@@ -233,6 +264,8 @@ pub(super) struct Stats {
     pub growth: f32,
     pub armor: f32,
     pub crit: f32,
+    /// Percent chance that a level-up deals a fourth card; only professions raise it.
+    pub luck: f32,
 }
 
 pub(super) const BASE_HP: f32 = 120.0;
@@ -262,9 +295,15 @@ pub(super) struct Run {
     /// The class mobility's cooldown and running effect.
     mobile: mobility::MobilityState,
     pub pending_levels: u32,
+    /// Bosses spawned (the results screen's tile); [`Run::bosses_slain`] counts the kills.
     pub bosses: u32,
+    pub bosses_slain: u32,
     pub rings: u32,
     pub won: bool,
+    /// What the account's professions add, fixed when the run starts.
+    pub bonuses: survivors_professions::Bonuses,
+    /// Set once the run has been counted toward the account's achievements.
+    pub recorded: bool,
     /// Seconds since the hero fell, while the death plays out.
     pub dead_t: Option<f32>,
     pub next_guid: u64,
@@ -298,8 +337,11 @@ impl Default for Run {
             mobile: mobility::MobilityState::default(),
             pending_levels: 0,
             bosses: 0,
+            bosses_slain: 0,
             rings: 0,
             won: false,
+            bonuses: survivors_professions::Bonuses::default(),
+            recorded: false,
             dead_t: None,
             next_guid: 1,
             damage_done: 0.0,
@@ -322,6 +364,7 @@ impl Run {
             growth: 1.0,
             armor: 0.0,
             crit: 0.05,
+            luck: 0.0,
         };
         // Tanky classes start tougher, cloth starts quicker.
         match self.class.id {
@@ -344,6 +387,14 @@ impl Run {
                 Stat::Crit => s.crit += v,
             }
         }
+        // The account's professions, on top of the run's own passives.
+        let b = &self.bonuses;
+        s.luck += b.luck;
+        s.might += b.damage;
+        s.max_hp *= 1.0 + b.max_health;
+        s.area += b.area;
+        s.armor += b.armor;
+        s.magnet *= 1.0 + b.pickup_range;
         s
     }
 

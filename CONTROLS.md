@@ -6,6 +6,7 @@
 |---|---|---|
 | Menu | Click a race, gender, class and zone | make your pick (**Randomize** rolls one) |
 | Menu | **Enter** (or **Enter World**) | start the run; the world travels to the zone picked |
+| Menu | **Professions** (under the zones) | spend achievement points on recipes; **Esc** or **Close** shuts it ([PROFESSIONS.md](PROFESSIONS.md)) |
 | Playing | **W / S / A / D** or **arrow keys** | move the hero (locked camera: the hero faces the cursor, backpedals and strafes) |
 | Playing | **Space** | jump |
 | Playing | **F** (from level 5) | your class's movement spell: Blink, Charge… aim at the cursor |
@@ -15,7 +16,7 @@
 | Playing | **drag** (camera unlocked) | swing and tilt the camera |
 | Playing | **Esc** | pause |
 | Playing | — | abilities cast themselves (no aim) |
-| Level up | **1 / 2 / 3** (or click a card) | pick an upgrade |
+| Level up | **1 / 2 / 3** (or click a card); **4** when luck deals a fourth | pick an upgrade |
 | Paused | **Esc** | resume |
 | Game over | **Enter** (or **Play again**) | back to the menu |
 | Any | minimap **+ / −** / minimize | minimap zoom / collapse |
