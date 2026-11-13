@@ -146,10 +146,10 @@ impl Plugin for SurvivorsPlugin {
                 Update,
                 (
                     professions::panel_clicks,
+                    professions::build_tabs,
                     professions::build_panel,
                     professions::show_panel,
                     professions::hover_cells,
-                    professions::refresh_hint,
                     professions::refresh_results_line,
                     professions::record_on_exit,
                 )

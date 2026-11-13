@@ -204,8 +204,21 @@ fn results_line(earned: &[usize], p: &Profile) -> String {
         .to_string()
 }
 
-// --- The panel. ---
+// --- The menu's tabs and the Professions page. ---
 
+/// The menu's top-level tabs, in a bar above both pages. Another page (equipment, talents) is one
+/// more variant here and one more entry in [`MENU_TABS`].
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub(super) enum MenuTab {
+    /// The pick screen: race, class, zone and Enter World.
+    #[default]
+    Hero,
+    Professions,
+}
+
+const MENU_TABS: [MenuTab; 2] = [MenuTab::Hero, MenuTab::Professions];
+
+/// The Professions page's own tabs: the recipes, then each achievement category.
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub(super) enum Tab {
     #[default]
@@ -220,34 +233,45 @@ const ACHIEVEMENT_TABS: [Category; 4] = [
     Category::Zones,
 ];
 
-/// Whether the panel is up, on which tab, and the answer to the last craft.
+/// Where the tab bar sits, and where the Professions page starts under it.
+const TABS_TOP: f32 = 12.0;
+const PAGE_TOP: f32 = 58.0;
+
+/// The menu tab that is up, the Professions page's tab, and the answer to the last craft.
 #[derive(Resource, Default)]
 pub(super) struct Panel {
-    pub open: bool,
+    menu: MenuTab,
     tab: Tab,
     message: Option<(String, Color)>,
 }
 
-/// What a click in or around the panel does. [`PanelAction::Open`] is the pick screen's button.
+impl Panel {
+    /// Whether the Professions page is up in place of the pick screen.
+    pub fn open(&self) -> bool {
+        self.menu == MenuTab::Professions
+    }
+}
+
+/// What a click on the tab bar or the Professions page does.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum PanelAction {
-    Open,
-    Close,
+    Menu(MenuTab),
     Tab(Tab),
     /// `(profession, tier)`.
     Craft(usize, usize),
 }
 
+/// The menu's tab bar.
+#[derive(Component)]
+pub(super) struct MenuTabsRoot;
+
+/// The Professions page.
 #[derive(Component)]
 pub(super) struct PanelRoot;
 
-/// The bordered frame, whose children are rebuilt on every change.
+/// The page's bordered frame, whose children are rebuilt on every change.
 #[derive(Component)]
 pub(super) struct PanelFrame;
-
-/// The pick screen's line under the Professions button.
-#[derive(Component)]
-pub(super) struct PointsHint;
 
 /// A cell that lights under the cursor.
 #[derive(Component)]
@@ -261,33 +285,46 @@ fn tier_color(tier: usize) -> Color {
     [COMMON, UNCOMMON, RARE, EPIC, LEGENDARY][tier.min(4)]
 }
 
-/// The panel's backdrop and frame, hidden until opened. Clicking the backdrop closes it; the
-/// backdrop also keeps the clicks off the pick screen beneath.
+/// The tab bar, and the Professions page under it, both hidden until the menu is up.
 pub(super) fn setup_panel(mut commands: Commands) {
+    // Spans the screen's width only to centre the tabs: it passes clicks through.
+    commands.spawn((
+        MenuTabsRoot,
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(TABS_TOP),
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            column_gap: Val::Px(6.0),
+            display: Display::None,
+            ..default()
+        },
+        GlobalZIndex(440),
+        Visibility::Hidden,
+    ));
+    // Above the world, under the tab bar; the pick screen is hidden while it is up.
     commands
         .spawn((
             PanelRoot,
-            PanelAction::Close,
             Interaction::default(),
             bevy::ui::FocusPolicy::Block,
             Node {
                 position_type: PositionType::Absolute,
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
+                flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
+                padding: UiRect::top(Val::Px(PAGE_TOP)),
                 display: Display::None,
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.72)),
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.6)),
             GlobalZIndex(430),
             Visibility::Hidden,
         ))
         .with_children(|root| {
             root.spawn((
                 PanelFrame,
-                Interaction::default(),
-                bevy::ui::FocusPolicy::Block,
                 Node {
                     width: Val::Px(INNER_W + 40.0),
                     flex_direction: FlexDirection::Column,
@@ -306,7 +343,7 @@ pub(super) fn setup_panel(mut commands: Commands) {
         });
 }
 
-/// Open, close, switch tabs and craft; Esc closes. Leaving the pick screen closes the panel.
+/// Switch tabs and craft; Esc goes back to the Hero tab, and so does leaving the menu.
 pub(super) fn panel_clicks(
     clicks: Res<GlueClicks>,
     actions: Query<(Entity, &PanelAction)>,
@@ -316,13 +353,13 @@ pub(super) fn panel_clicks(
     mut profile: ResMut<Profile>,
 ) {
     if *phase.get() != Phase::Menu {
-        if panel.open {
-            panel.open = false;
+        if panel.menu != MenuTab::Hero {
+            panel.menu = MenuTab::Hero;
         }
         return;
     }
-    if panel.open && keys.just_pressed(KeyCode::Escape) {
-        panel.open = false;
+    if panel.open() && keys.just_pressed(KeyCode::Escape) {
+        panel.menu = MenuTab::Hero;
         return;
     }
     let Some(action) = actions
@@ -333,11 +370,12 @@ pub(super) fn panel_clicks(
         return;
     };
     match action {
-        PanelAction::Open => {
-            panel.open = true;
-            panel.message = None;
+        PanelAction::Menu(t) => {
+            if panel.menu != t {
+                panel.menu = t;
+                panel.message = None;
+            }
         }
-        PanelAction::Close => panel.open = false,
         PanelAction::Tab(t) => {
             panel.tab = t;
             panel.message = None;
@@ -371,26 +409,38 @@ pub(super) fn panel_clicks(
     }
 }
 
-/// Up only on the pick screen, and only when opened.
+/// The tab bar is up on the menu; the Professions page when its tab is picked. The pick screen's
+/// own root hides itself meanwhile ([`super::hud::show_panels`]).
 pub(super) fn show_panel(
     phase: Res<State<Phase>>,
     panel: Res<Panel>,
-    mut roots: Query<(&mut Visibility, &mut Node), With<PanelRoot>>,
+    mut roots: ParamSet<(
+        Query<(&mut Visibility, &mut Node), With<MenuTabsRoot>>,
+        Query<(&mut Visibility, &mut Node), With<PanelRoot>>,
+    )>,
 ) {
-    let on = *phase.get() == Phase::Menu && panel.open;
-    for (mut v, mut node) in &mut roots {
-        let want = if on {
-            Visibility::Inherited
-        } else {
-            Visibility::Hidden
-        };
-        if *v != want {
-            *v = want;
-        }
-        let display = if on { Display::Flex } else { Display::None };
-        if node.display != display {
-            node.display = display;
-        }
+    let menu = *phase.get() == Phase::Menu;
+    for root in &mut roots.p0() {
+        show(root, menu);
+    }
+    for root in &mut roots.p1() {
+        show(root, menu && panel.open());
+    }
+}
+
+/// A hidden page leaves the layout too: a merely invisible button still takes clicks.
+fn show((mut v, mut node): (Mut<Visibility>, Mut<Node>), on: bool) {
+    let want = if on {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
+    if *v != want {
+        *v = want;
+    }
+    let display = if on { Display::Flex } else { Display::None };
+    if node.display != display {
+        node.display = display;
     }
 }
 
@@ -406,27 +456,42 @@ pub(super) fn hover_cells(
     }
 }
 
-/// The pick screen's reminder of points waiting to be spent. The pick screen is built once the
-/// archives are readable, after the account has loaded, so a new hint is filled in too.
-pub(super) fn refresh_hint(
+/// The tab bar's buttons, rebuilt when the tab or the points waiting to be spent change: the
+/// Professions tab shows how many there are.
+pub(super) fn build_tabs(
+    mut commands: Commands,
+    panel: Res<Panel>,
     profile: Res<Profile>,
-    new_hints: Query<(), Added<PointsHint>>,
-    mut hints: Query<&mut Text, With<PointsHint>>,
+    font: Option<Res<HudFont>>,
+    bars: Query<(Entity, Option<&Children>), With<MenuTabsRoot>>,
 ) {
-    if !profile.is_changed() && new_hints.is_empty() {
+    let (Some(font), Ok((bar, built))) = (font, bars.single()) else {
+        return;
+    };
+    if built.is_some() && !panel.is_changed() && !profile.is_changed() {
         return;
     }
-    let points = profile.points();
-    let want = match points {
-        0 => String::new(),
-        1 => "1 achievement point to spend".to_string(),
-        n => format!("{n} achievement points to spend"),
-    };
-    for mut t in &mut hints {
-        if t.0 != want {
-            t.0.clone_from(&want);
+    commands.entity(bar).despawn_related::<Children>();
+    commands.entity(bar).with_children(|row| {
+        for t in MENU_TABS {
+            let label = match t {
+                MenuTab::Hero => "Hero".to_string(),
+                MenuTab::Professions => match profile.points() {
+                    0 => "Professions".to_string(),
+                    n => format!("Professions ({n})"),
+                },
+            };
+            tab_button(
+                row,
+                &font.0,
+                label,
+                PanelAction::Menu(t),
+                panel.menu == t,
+                18.0,
+                150.0,
+            );
         }
-    }
+    });
 }
 
 /// Rebuild the open panel whenever it or the account changes.
@@ -437,7 +502,7 @@ pub(super) fn build_panel(
     font: Option<Res<HudFont>>,
     frames: Query<Entity, With<PanelFrame>>,
 ) {
-    if !panel.open || (!panel.is_changed() && !profile.is_changed()) {
+    if !panel.open() || (!panel.is_changed() && !profile.is_changed()) {
         return;
     }
     let (Some(font), Ok(frame)) = (font, frames.single()) else {
@@ -488,8 +553,8 @@ fn header(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
     });
     ui.spawn(text_bundle(
         f,
-        "Every run earns achievements, and every achievement earns points once. Spend them on \
-         recipes: each profession's best recipe adds its bonus to every run on this account.",
+        "Runs earn achievements, each worth points once. Each profession's best recipe adds its \
+         bonus to every run on this account.",
         13.0,
         DIM,
     ));
@@ -499,8 +564,10 @@ fn tab_button(
     ui: &mut ChildSpawnerCommands,
     f: &Handle<Font>,
     label: String,
-    tab: Tab,
+    action: PanelAction,
     selected: bool,
+    size: f32,
+    min_w: f32,
 ) {
     let (base, edge, color) = if selected {
         (CELL_HOT, GOLD, GOLD)
@@ -508,13 +575,15 @@ fn tab_button(
         (CELL, EDGE, Color::srgb(0.85, 0.85, 0.85))
     };
     ui.spawn((
-        PanelAction::Tab(tab),
+        action,
         Button,
         Hover {
             base,
             hot: CELL_HOT,
         },
         Node {
+            min_width: Val::Px(min_w),
+            justify_content: JustifyContent::Center,
             padding: UiRect::axes(Val::Px(14.0), Val::Px(6.0)),
             border: UiRect::all(Val::Px(1.0)),
             border_radius: BorderRadius::all(Val::Px(4.0)),
@@ -524,7 +593,7 @@ fn tab_button(
         BorderColor::all(edge),
     ))
     .with_children(|b| {
-        b.spawn(text_bundle(f, label, 15.0, color));
+        b.spawn(text_bundle(f, label, size, color));
     });
 }
 
@@ -538,8 +607,10 @@ fn tabs(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile:
             row,
             f,
             "Recipes".into(),
-            Tab::Recipes,
+            PanelAction::Tab(Tab::Recipes),
             panel.tab == Tab::Recipes,
+            15.0,
+            0.0,
         );
         for c in ACHIEVEMENT_TABS {
             let all: Vec<&Achievement> =
@@ -552,8 +623,10 @@ fn tabs(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile:
                 row,
                 f,
                 format!("{} {done}/{}", c.label(), all.len()),
-                Tab::Achievements(c),
+                PanelAction::Tab(Tab::Achievements(c)),
                 panel.tab == Tab::Achievements(c),
+                15.0,
+                0.0,
             );
         }
     });
@@ -735,7 +808,7 @@ fn achievements(
     });
 }
 
-/// The bonuses every run gets now, the last craft's answer, and Close.
+/// The bonuses every run gets now, the last craft's answer, and the way back.
 fn footer(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile: &Profile) {
     let bonuses = profile.bonuses();
     ui.spawn(Node {
@@ -771,27 +844,7 @@ fn footer(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profil
                 c.spawn(text_bundle(f, msg.clone(), 13.0, *color));
             }
         });
-        row.spawn((
-            PanelAction::Close,
-            Button,
-            Hover {
-                base: CELL,
-                hot: CELL_HOT,
-            },
-            Node {
-                width: Val::Px(140.0),
-                justify_content: JustifyContent::Center,
-                padding: UiRect::axes(Val::Px(16.0), Val::Px(8.0)),
-                border: UiRect::all(Val::Px(2.0)),
-                border_radius: BorderRadius::all(Val::Px(4.0)),
-                ..default()
-            },
-            BackgroundColor(CELL),
-            BorderColor::all(GOLD),
-        ))
-        .with_children(|b| {
-            b.spawn(text_bundle(f, "Close", 18.0, GOLD));
-        });
+        row.spawn(text_bundle(f, "Esc: back to Hero", 12.0, DIM));
     });
 }
 

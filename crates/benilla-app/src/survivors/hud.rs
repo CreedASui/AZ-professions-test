@@ -1077,7 +1077,7 @@ pub(super) fn keys(
     match phase.get() {
         Phase::Menu => {
             if keys.just_pressed(KeyCode::Enter)
-                && !panel.open
+                && !panel.open()
                 && start_run(&mut run, &mut selection, profile.bonuses())
             {
                 next.set(Phase::Playing);
@@ -2208,6 +2208,7 @@ pub(super) fn icon_tooltip(
 #[allow(clippy::type_complexity)]
 pub(super) fn show_panels(
     phase: Res<State<Phase>>,
+    panel: Res<super::professions::Panel>,
     mut roots: ParamSet<(
         Query<(&mut Visibility, &mut Node), With<MenuRoot>>,
         Query<(&mut Visibility, &mut Node), With<HudRoot>>,
@@ -2232,8 +2233,9 @@ pub(super) fn show_panels(
             node.display = display;
         }
     };
+    // The pick screen is the menu's Hero tab: another tab takes its place.
     for root in &mut roots.p0() {
-        set(root, p == Phase::Menu);
+        set(root, p == Phase::Menu && !panel.open());
     }
     for root in &mut roots.p1() {
         set(root, p != Phase::Menu && p != Phase::GameOver);

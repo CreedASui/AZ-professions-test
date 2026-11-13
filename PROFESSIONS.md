@@ -6,8 +6,11 @@ into small permanent bonuses for the whole account:
 1. **Runs earn achievements.** Survive 5 minutes, kill 1,500 enemies in one run, win in Duskwood,
    kill 10,000 enemies in total, and so on. Each achievement gives **achievement points** once
    per account.
-2. **Points buy recipes.** On the pick screen, the **Professions** button (under the zone list)
-   opens a panel with six professions of five recipes each. A recipe needs the one before it.
+2. **Points buy recipes.** The menu has a **Professions** tab next to **Hero** (the pick
+   screen), at the top. It groups everything about professions in one place: six professions of
+   five recipes each, and the achievements that pay for them, by category. A recipe needs the
+   one before it. The tab's label shows the points waiting to be spent, e.g. *Professions (35)*.
+   **Esc** goes back to Hero.
 3. **The best recipe in each profession boosts every run.** A Greater Magic Wand *replaces* the
    Lesser Magic Wand: bonuses within a profession don't stack, the best one counts. Bonuses from
    different professions do add up.
@@ -96,7 +99,7 @@ everything it can.
 | Path | What |
 |---|---|
 | `crates/survivors-professions/` | The rules, with no dependencies: professions and recipes (`professions.rs`), achievements (`achievements.rs`), the account and its save format (`account.rs`). 20 unit tests. |
-| `crates/benilla-app/src/survivors/professions.rs` | The game side: loading and saving the account, counting runs, the Professions panel, the results screen's line. |
+| `crates/benilla-app/src/survivors/professions.rs` | The game side: loading and saving the account, counting runs, the menu's tab bar and the Professions page, the results screen's line. A new menu page (equipment, talents) is one more `MenuTab` variant. |
 | `crates/benilla-app/src/survivors/mod.rs` | `Run::bonuses` and `Stats::luck`; `Run::stats()` adds the account's bonuses. |
 | `crates/benilla-app/src/survivors/hud.rs` | `start_run` takes the bonuses; luck deals the fourth card. |
 
@@ -125,6 +128,6 @@ feature can't simply be merged into it. It's built to be easy to adopt, though:
   3. at the start of a run, add `Account::bonuses()` to the hero's stats. The official game
      already has a Luck stat, so `Bonuses::luck` can feed it directly instead of the fourth-card
      rule used here;
-  4. draw a panel that lists `PROFESSIONS` and calls `Account::craft`.
+  4. draw a page (here, a menu tab) that lists `PROFESSIONS` and calls `Account::craft`.
 - If the official game already has its own achievement points, steps 1 and 2 can be dropped and
   `Account::points_available` replaced by the game's own count.

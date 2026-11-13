@@ -50,8 +50,8 @@ minutes. **No server, no login, no account** — fully offline and self-containe
   and points buy recipes in six professions (Alchemy, Blacksmithing, Enchanting, Engineering,
   Leatherworking, Tailoring). Each profession's best recipe adds a permanent bonus to every run on
   the account: Lesser Magic Wand +5 Luck → Greater Magic Wand +10 Luck, Rough Dynamite +10% Area →
-  Coarse Dynamite +20% Area, and so on. Open it from **Professions** under the zone list. See
-  [PROFESSIONS.md](PROFESSIONS.md).
+  Coarse Dynamite +20% Area, and so on. Everything about it is grouped in the menu's own
+  **Professions** tab, next to **Hero**. See [PROFESSIONS.md](PROFESSIONS.md).
 
 ## Play it
 

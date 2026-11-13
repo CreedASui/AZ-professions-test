@@ -204,34 +204,6 @@ pub(super) fn build_menu(
                 1.0,
             );
         });
-        // Under the zone frame: the account's professions, and the points waiting there.
-        ui.spawn(Node {
-            position_type: PositionType::Absolute,
-            right: Val::Px(5.0),
-            bottom: Val::Px(14.0),
-            width: Val::Px(260.0),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            row_gap: Val::Px(4.0),
-            ..default()
-        })
-        .with_children(|c| {
-            glue_button(
-                c,
-                &art,
-                f,
-                super::professions::PanelAction::Open,
-                "Professions",
-                170.0,
-                45.0,
-                GlueBtnKind::Normal,
-                1.0,
-            );
-            c.spawn((
-                super::professions::PointsHint,
-                super::hud::text_bundle(f, "", 13.0, GOLD),
-            ));
-        });
     });
 }
 
