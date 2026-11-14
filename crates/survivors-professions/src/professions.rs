@@ -19,8 +19,8 @@ pub enum BonusStat {
     MaxHealth,
     /// The size of every area of effect, as a fraction.
     Area,
-    /// Damage blocked from every hit taken, flat.
-    Armor,
+    /// DR: the share of every hit's damage taken off it, as a fraction: `0.04` is 4%.
+    DamageReduction,
     /// The range experience is picked up from, as a fraction.
     PickupRange,
 }
@@ -31,7 +31,7 @@ impl BonusStat {
         BonusStat::Damage,
         BonusStat::MaxHealth,
         BonusStat::Area,
-        BonusStat::Armor,
+        BonusStat::DamageReduction,
         BonusStat::PickupRange,
     ];
 
@@ -41,7 +41,7 @@ impl BonusStat {
             BonusStat::Damage => "Damage",
             BonusStat::MaxHealth => "Max health",
             BonusStat::Area => "Area of effect",
-            BonusStat::Armor => "Armor",
+            BonusStat::DamageReduction => "Damage reduction",
             BonusStat::PickupRange => "Pickup range",
         }
     }
@@ -53,14 +53,14 @@ impl BonusStat {
             BonusStat::Damage => "All damage you deal",
             BonusStat::MaxHealth => "Your maximum health",
             BonusStat::Area => "Size of your areas of effect",
-            BonusStat::Armor => "Damage blocked per hit",
+            BonusStat::DamageReduction => "DR: less damage from every hit",
             BonusStat::PickupRange => "Experience pickup range",
         }
     }
 
-    /// Flat stats print as points; the rest are fractions printed as percent.
+    /// Luck prints as points; the rest are fractions printed as percent.
     fn is_flat(self) -> bool {
-        matches!(self, BonusStat::Luck | BonusStat::Armor)
+        matches!(self, BonusStat::Luck)
     }
 
     /// `+5 Luck`, `+20% Area of effect`.
@@ -258,12 +258,12 @@ pub static PROFESSIONS: &[Profession] = &[
         key: "leatherworking",
         name: "Leatherworking",
         icon_spell: 2108,
-        stat: BonusStat::Armor,
+        stat: BonusStat::DamageReduction,
         recipes: &[
-            r("light-armor-kit", "Light Armor Kit", A, 0.5),   // 1
-            r("medium-armor-kit", "Medium Armor Kit", J, 1.0), // 100
-            r("heavy-armor-kit", "Heavy Armor Kit", E, 1.5),   // 150
-            r("rugged-armor-kit", "Rugged Armor Kit", R, 2.0), // 250
+            r("light-armor-kit", "Light Armor Kit", A, 0.04),   // 1
+            r("medium-armor-kit", "Medium Armor Kit", J, 0.08), // 100
+            r("heavy-armor-kit", "Heavy Armor Kit", E, 0.12),   // 150
+            r("rugged-armor-kit", "Rugged Armor Kit", R, 0.16), // 250
         ],
     },
     Profession {
@@ -295,7 +295,7 @@ pub struct Bonuses {
     pub damage: f32,
     pub max_health: f32,
     pub area: f32,
-    pub armor: f32,
+    pub damage_reduction: f32,
     pub pickup_range: f32,
 }
 
@@ -306,7 +306,7 @@ impl Bonuses {
             BonusStat::Damage => self.damage,
             BonusStat::MaxHealth => self.max_health,
             BonusStat::Area => self.area,
-            BonusStat::Armor => self.armor,
+            BonusStat::DamageReduction => self.damage_reduction,
             BonusStat::PickupRange => self.pickup_range,
         }
     }
@@ -317,7 +317,7 @@ impl Bonuses {
             BonusStat::Damage => &mut self.damage,
             BonusStat::MaxHealth => &mut self.max_health,
             BonusStat::Area => &mut self.area,
-            BonusStat::Armor => &mut self.armor,
+            BonusStat::DamageReduction => &mut self.damage_reduction,
             BonusStat::PickupRange => &mut self.pickup_range,
         };
         *slot += v;
@@ -425,7 +425,10 @@ mod tests {
 
     #[test]
     fn bonuses_print_in_their_units() {
-        assert_eq!(BonusStat::Armor.format(0.5), "+0.5 Armor");
+        assert_eq!(
+            BonusStat::DamageReduction.format(0.04),
+            "+4% Damage reduction"
+        );
         assert_eq!(BonusStat::Damage.format(0.25), "+25% Damage");
         let mut b = Bonuses::default();
         assert!(b.is_empty());

@@ -267,6 +267,8 @@ pub(super) struct Stats {
     pub crit: f32,
     /// Percent chance that a level-up deals a fourth card; only professions raise it.
     pub luck: f32,
+    /// DR: the share of every hit taken off it, after armour; only professions raise it.
+    pub damage_reduction: f32,
 }
 
 pub(super) const BASE_HP: f32 = 120.0;
@@ -366,6 +368,7 @@ impl Run {
             armor: 0.0,
             crit: 0.05,
             luck: 0.0,
+            damage_reduction: 0.0,
         };
         // Tanky classes start tougher, cloth starts quicker.
         match self.class.id {
@@ -394,7 +397,7 @@ impl Run {
         s.might += b.damage;
         s.max_hp *= 1.0 + b.max_health;
         s.area += b.area;
-        s.armor += b.armor;
+        s.damage_reduction += b.damage_reduction;
         s.magnet *= 1.0 + b.pickup_range;
         s
     }

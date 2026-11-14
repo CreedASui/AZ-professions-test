@@ -403,7 +403,9 @@ pub(super) fn hurt_hero(run: &mut Run, raw: f32) -> f32 {
     if run.immune_t > 0.0 || run.dead_t.is_some() {
         return 0.0;
     }
-    let mut dmg = (raw - run.stats().armor).max(1.0);
+    let stats = run.stats();
+    // Armour blocks a flat amount, then DR (from Leatherworking) takes its share of the rest.
+    let mut dmg = ((raw - stats.armor) * (1.0 - stats.damage_reduction.min(0.9))).max(1.0);
     if run.shield_t > 0.0 && run.shield > 0.0 {
         let absorbed = dmg.min(run.shield);
         run.shield -= absorbed;

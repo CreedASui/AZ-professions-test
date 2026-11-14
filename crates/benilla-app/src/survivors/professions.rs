@@ -8,7 +8,6 @@
 //! draws the menu's tab bar, the Professions page and the results screen's line.
 
 use bevy::prelude::*;
-use survivors_professions::achievements::Category;
 use survivors_professions::{
     Account, Achievement, Bonuses, Bracket, CraftError, RunRecord, UnlockError, PROFESSIONS,
 };
@@ -236,30 +235,14 @@ pub(super) enum MenuTab {
 
 const MENU_TABS: [MenuTab; 2] = [MenuTab::Hero, MenuTab::Professions];
 
-/// The Professions page's own tabs: the recipes, then each achievement category.
-#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
-pub(super) enum Tab {
-    #[default]
-    Recipes,
-    Achievements(Category),
-}
-
-const ACHIEVEMENT_TABS: [Category; 4] = [
-    Category::Survival,
-    Category::Veteran,
-    Category::Classes,
-    Category::Zones,
-];
-
 /// Where the tab bar sits, and where the Professions page starts under it.
 const TABS_TOP: f32 = 12.0;
 const PAGE_TOP: f32 = 58.0;
 
-/// The menu tab that is up, the Professions page's tab, and the answer to the last craft.
+/// The menu tab that is up, and the answer to the last craft.
 #[derive(Resource, Default)]
 pub(super) struct Panel {
     menu: MenuTab,
-    tab: Tab,
     message: Option<(String, Color)>,
 }
 
@@ -274,7 +257,6 @@ impl Panel {
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum PanelAction {
     Menu(MenuTab),
-    Tab(Tab),
     /// Buy a trainer bracket for every profession.
     Unlock(Bracket),
     /// `(profession, tier)`.
@@ -401,10 +383,6 @@ pub(super) fn panel_clicks(
                 panel.menu = t;
                 panel.message = None;
             }
-        }
-        PanelAction::Tab(t) => {
-            panel.tab = t;
-            panel.message = None;
         }
         PanelAction::Craft(p, t) => {
             let prof = &PROFESSIONS[p];
@@ -597,11 +575,7 @@ pub(super) fn build_panel(
     commands.entity(frame).despawn_related::<Children>();
     commands.entity(frame).with_children(|ui| {
         header(ui, f, &profile);
-        tabs(ui, f, &panel, &profile);
-        match panel.tab {
-            Tab::Recipes => recipes(ui, f, &profile),
-            Tab::Achievements(c) => achievements(ui, f, &profile, c),
-        }
+        recipes(ui, f, &profile);
         footer(ui, f, &panel, &profile);
     });
 }
@@ -679,41 +653,6 @@ fn tab_button(
     ))
     .with_children(|b| {
         b.spawn(text_bundle(f, label, size, color));
-    });
-}
-
-fn tabs(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile: &Profile) {
-    ui.spawn(Node {
-        column_gap: Val::Px(8.0),
-        ..default()
-    })
-    .with_children(|row| {
-        tab_button(
-            row,
-            f,
-            "Recipes".into(),
-            PanelAction::Tab(Tab::Recipes),
-            panel.tab == Tab::Recipes,
-            15.0,
-            0.0,
-        );
-        for c in ACHIEVEMENT_TABS {
-            let all: Vec<&Achievement> =
-                profile.catalog.iter().filter(|a| a.category == c).collect();
-            let done = all
-                .iter()
-                .filter(|a| profile.account.has_earned(&a.key))
-                .count();
-            tab_button(
-                row,
-                f,
-                format!("{} {done}/{}", c.label(), all.len()),
-                PanelAction::Tab(Tab::Achievements(c)),
-                panel.tab == Tab::Achievements(c),
-                15.0,
-                0.0,
-            );
-        }
     });
 }
 
@@ -824,10 +763,11 @@ fn recipe_cell(
             DIM,
         )
     } else if !next {
+        // The item it needs is the one right above it; naming it would wrap the longest names.
         (
             CELL_LOCKED,
             Color::srgb(0.25, 0.25, 0.25),
-            format!("Requires {}", prof.recipes[t - 1].name),
+            "Requires the item above".to_string(),
             DIM,
         )
     } else if profile.points() >= recipe.cost {
@@ -961,59 +901,6 @@ fn brackets(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) 
         });
 }
 
-/// One category's achievements, four to a row.
-fn achievements(
-    ui: &mut ChildSpawnerCommands,
-    f: &Handle<Font>,
-    profile: &Profile,
-    category: Category,
-) {
-    ui.spawn(grid(4, 6.0)).with_children(|grid| {
-        for a in profile.catalog.iter().filter(|a| a.category == category) {
-            let done = profile.account.has_earned(&a.key);
-            let (bg, edge, name_color) = if done {
-                (CELL_KNOWN, UNCOMMON, GOLD)
-            } else {
-                (
-                    CELL_LOCKED,
-                    Color::srgb(0.25, 0.25, 0.25),
-                    Color::srgb(0.75, 0.75, 0.75),
-                )
-            };
-            grid.spawn((
-                Node {
-                    min_height: Val::Px(46.0),
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::axes(Val::Px(8.0), Val::Px(5.0)),
-                    row_gap: Val::Px(2.0),
-                    border: UiRect::all(Val::Px(1.0)),
-                    border_radius: BorderRadius::all(Val::Px(5.0)),
-                    ..default()
-                },
-                BackgroundColor(bg),
-                BorderColor::all(edge),
-            ))
-            .with_children(|c| {
-                c.spawn(Node {
-                    justify_content: JustifyContent::SpaceBetween,
-                    column_gap: Val::Px(6.0),
-                    ..default()
-                })
-                .with_children(|top| {
-                    top.spawn(text_bundle(f, a.name.clone(), 13.0, name_color));
-                    top.spawn(text_bundle(
-                        f,
-                        a.points.to_string(),
-                        13.0,
-                        if done { GOLD } else { DIM },
-                    ));
-                });
-                c.spawn(text_bundle(f, a.description.clone(), 11.0, DIM));
-            });
-        }
-    });
-}
-
 /// The bonuses every run gets now, the last craft's answer, and the way back.
 fn footer(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile: &Profile) {
     let bonuses = profile.bonuses();
@@ -1057,6 +944,7 @@ fn footer(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profil
 #[cfg(test)]
 mod tests {
     use super::*;
+    use survivors_professions::achievements::Category;
 
     fn profile() -> Profile {
         Profile {
@@ -1097,8 +985,8 @@ mod tests {
 
 /// A picture of the Professions tab without the game: no WoW data, so a stand-in font (DejaVu
 /// Serif for Friz Quadrata), dark squares where the spell icons go, and no world behind the page.
-/// It needs a GPU adapter (Mesa's lavapipe is enough) and writes three PNGs: the recipes and the
-/// achievements at 16:9, and the recipes again at 4:3, the narrowest screen the menu lays out for:
+/// It needs a GPU adapter (Mesa's lavapipe is enough) and writes two PNGs: the tab at 16:9, and
+/// again at 4:3, the narrowest screen the menu lays out for:
 ///
 /// ```text
 /// PROFESSIONS_PREVIEW=<dir> cargo test -p benilla-app --lib render_professions_tab -- --ignored
@@ -1204,7 +1092,6 @@ mod preview {
         .insert_resource(sample_profile())
         .insert_resource(Panel {
             menu: MenuTab::Professions,
-            tab: Tab::Recipes,
             message: Some((
                 "Crafted Coarse Dynamite: +20% Area of effect on every run from now on.".into(),
                 UNCOMMON,
@@ -1224,15 +1111,10 @@ mod preview {
         app.update();
 
         let shots = [
-            (Tab::Recipes, W, "professions-recipes.png"),
-            (
-                Tab::Achievements(Category::Survival),
-                W,
-                "professions-achievements.png",
-            ),
-            (Tab::Recipes, W_4X3, "professions-recipes-4x3.png"),
+            (W, "professions-recipes.png"),
+            (W_4X3, "professions-recipes-4x3.png"),
         ];
-        for (tab, width, name) in shots {
+        for (width, name) in shots {
             let target = app.world().resource::<Target>().0.clone();
             if let Some(image) = app
                 .world_mut()
@@ -1245,7 +1127,6 @@ mod preview {
                     depth_or_array_layers: 1,
                 });
             }
-            app.world_mut().resource_mut::<Panel>().tab = tab;
             for _ in 0..20 {
                 app.update();
             }

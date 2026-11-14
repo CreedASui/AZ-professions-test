@@ -7,10 +7,10 @@ into small permanent bonuses for the whole account:
    kill 10,000 enemies in total, and so on. Each achievement gives **achievement points** once
    per account.
 2. **Points unlock brackets and buy recipes.** The menu has a **Professions** tab next to
-   **Hero** (the pick screen), at the top. It groups everything about professions in one place:
-   the trainer's brackets, six professions of recipes, and the achievements that pay for them, by
-   category. The tab's label shows the points waiting to be spent, e.g. *Professions (35)*.
-   **Esc** goes back to Hero.
+   **Hero** (the pick screen), at the top: the trainer's brackets, then six professions with one
+   item per bracket, and the bonuses every run gets now. The tab's label shows the points waiting
+   to be spent, e.g. *Professions (35)*. **Esc** goes back to Hero. (Achievements have no screen
+   of their own: the results screen says what each run earned.)
 3. **Brackets gate the recipes, as WoW Classic's trainer ranks do.** Every account is an
    **Apprentice**; **Journeyman** crafting costs **50** points, **Expert** **100** and **Artisan**
    **150**, each after the one before. A bracket is for the whole account: unlocking Journeyman
@@ -49,7 +49,7 @@ item in `crates/survivors-professions/src/professions.rs`.
 | Blacksmithing | All damage | Rough Sharpening Stone +5% | Heavy Sharpening Stone +10% | Solid Sharpening Stone +15% | Dense Sharpening Stone +20% |
 | Enchanting | Luck | Lesser Magic Wand +5 | Greater Magic Wand +10 | Greater Mystic Wand +15 | Runed Arcanite Rod +20 |
 | Engineering | Area of effect | Rough Dynamite +10% | Coarse Dynamite +20% | Solid Dynamite +30% | Dense Dynamite +40% |
-| Leatherworking | Armor (damage blocked per hit) | Light Armor Kit +0.5 | Medium Armor Kit +1 | Heavy Armor Kit +1.5 | Rugged Armor Kit +2 |
+| Leatherworking | DR (damage reduction) | Light Armor Kit +4% | Medium Armor Kit +8% | Heavy Armor Kit +12% | Rugged Armor Kit +16% |
 | Tailoring | Pickup range | Linen Bag +20% | Woolen Bag +40% | Small Silk Pack +60% | Runecloth Bag +80% |
 
 Within a profession, items are crafted left to right, each for 20 points; the bonus shown is the
@@ -60,10 +60,12 @@ to choose from (press **4** or click it). Only Enchanting raises it.
 
 How the numbers were picked: the examples from the original idea are kept exactly (the wands'
 +5/+10 Luck and the dynamites' +10%/+20% Area at 20 points each; Journeyman 50, Expert 100, with
-Artisan continuing the step at 150) and every profession climbs in four equal steps. For the
-other stats, the top item is worth about two levels of the matching in-run passive (Blessing of
-Might gives +10% damage a level, so the top sharpening stone gives +20%). Everything is in one
-table and easy to rebalance: see [Tuning](#tuning).
+Artisan continuing the step at 150) and every profession climbs in four equal steps.
+Leatherworking gives **DR**, damage reduction, as the official game calls it: 4, 8, 12, 16% off
+every hit taken (in this build it applies after the in-run armour passive). For the other stats,
+the top item is worth about two levels of the matching in-run passive (Blessing of Might gives
++10% damage a level, so the top sharpening stone gives +20%). Everything is in one table and easy
+to rebalance: see [Tuning](#tuning).
 
 ## The achievements
 
@@ -134,8 +136,8 @@ everything it can.
   the recipes' cost is `RECIPE_COST`, the brackets' `Bracket::cost`.
 - **Achievements and their points:** `GENERAL`, `CLASS_WIN_POINTS`, `ZONE_WIN_POINTS` and
   `ZONE_SURVIVE_POINTS` in `crates/survivors-professions/src/achievements.rs`.
-- **Seeing the tab without the game:** the preview above (and one of the achievements, and one at
-  4:3) comes from an ignored test that renders the tab's own code offscreen. It needs a GPU
+- **Seeing the tab without the game:** the preview above (and one at 4:3) comes from an ignored
+  test that renders the tab's own code offscreen. It needs a GPU
   adapter, but a CPU one is enough (Mesa's lavapipe: `apt-get install mesa-vulkan-drivers`):
   `PROFESSIONS_PREVIEW=<dir> cargo test -p benilla-app --lib render_professions_tab -- --ignored`.
 - Save keys (`lesser-magic-wand`, `survive-5m`, …) are the save format: rename a recipe's `name`
