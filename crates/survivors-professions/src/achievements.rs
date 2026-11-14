@@ -264,7 +264,7 @@ pub fn catalog(classes: &[(u8, &str)], zones: &[&str]) -> Vec<Achievement> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::PROFESSIONS;
+    use crate::{Bracket, PROFESSIONS};
     use std::collections::HashSet;
 
     /// The game's nine classes and sixteen zones, as `data::CLASSES` and `data::MAPS` list them.
@@ -320,18 +320,19 @@ pub(crate) mod tests {
         assert_eq!(all.len(), GENERAL.len() + CLASSES.len() + 2 * ZONES.len());
     }
 
-    /// A player who does everything can master every profession.
+    /// A player who does everything can unlock every bracket and craft every recipe.
     #[test]
     fn there_are_enough_points_to_master_everything() {
         let earnable: u32 = catalog(CLASSES, ZONES).iter().map(|a| a.points).sum();
-        let costs: u32 = PROFESSIONS
+        let recipes: u32 = PROFESSIONS
             .iter()
             .flat_map(|p| p.recipes)
             .map(|r| r.cost)
             .sum();
-        assert_eq!(costs, 840);
+        let brackets: u32 = Bracket::ALL.iter().map(|b| b.cost()).sum();
+        assert_eq!((recipes, brackets), (640, 300));
         assert_eq!(earnable, 940);
-        assert!(earnable >= costs);
+        assert!(earnable >= recipes + brackets);
     }
 
     #[test]

@@ -47,8 +47,9 @@ minutes. **No server, no login, no account** — fully offline and self-containe
   unlocks it to swing and tilt, and the wheel zooms from over the shoulder out to 70 yards.
 - A light sharpen-and-colour pass over the picture (**G** toggles it).
 - **Professions: progress that carries over.** Runs earn achievements, achievements earn points,
-  and points buy recipes in six professions (Alchemy, Blacksmithing, Enchanting, Engineering,
-  Leatherworking, Tailoring). Each profession's best recipe adds a permanent bonus to every run on
+  and points unlock the trainer's brackets (Journeyman 50, Expert 100, Artisan 150) and buy
+  recipes in six professions (Alchemy, Blacksmithing, Enchanting, Engineering, Leatherworking,
+  Tailoring). Each profession's best recipe adds a permanent bonus to every run on
   the account: Lesser Magic Wand +5 Luck → Greater Magic Wand +10 Luck, Rough Dynamite +10% Area →
   Coarse Dynamite +20% Area, and so on. Everything about it is grouped in the menu's own
   **Professions** tab, next to **Hero**. See [PROFESSIONS.md](PROFESSIONS.md).

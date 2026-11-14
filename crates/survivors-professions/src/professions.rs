@@ -1,7 +1,8 @@
-//! The six professions and their recipe chains.
+//! The trainer's brackets, the six professions and their recipe chains.
 //!
-//! Every number a player could want to tune lives in [`PROFESSIONS`]: a recipe's cost in
-//! achievement points and the bonus it gives. Bonuses do not stack within a profession: the best
+//! Every number a player could want to tune lives here: what a bracket costs ([`Bracket::cost`]),
+//! what a recipe costs ([`RECIPE_COST`]), and in [`PROFESSIONS`] each recipe's bracket and the
+//! bonus it gives. Bonuses do not stack within a profession: the best
 //! recipe crafted is the one carried (a Greater Magic Wand replaces the Lesser one), so a
 //! recipe's value is the profession's total once it is crafted.
 
@@ -72,12 +73,88 @@ impl BonusStat {
     }
 }
 
+/// The trainer's ranks, as in WoW Classic: a recipe can only be crafted once its bracket is
+/// unlocked. Brackets are for the whole account: unlocking Journeyman opens the Journeyman
+/// recipes of every profession.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Bracket {
+    /// Known from the start.
+    Apprentice,
+    Journeyman,
+    Expert,
+    Artisan,
+}
+
+impl Bracket {
+    pub const ALL: [Bracket; 4] = [
+        Bracket::Apprentice,
+        Bracket::Journeyman,
+        Bracket::Expert,
+        Bracket::Artisan,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Bracket::Apprentice => "Apprentice",
+            Bracket::Journeyman => "Journeyman",
+            Bracket::Expert => "Expert",
+            Bracket::Artisan => "Artisan",
+        }
+    }
+
+    /// Stable id in the save file.
+    pub fn key(self) -> &'static str {
+        match self {
+            Bracket::Apprentice => "apprentice",
+            Bracket::Journeyman => "journeyman",
+            Bracket::Expert => "expert",
+            Bracket::Artisan => "artisan",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<Bracket> {
+        Bracket::ALL.into_iter().find(|b| b.key() == key)
+    }
+
+    /// Achievement points to unlock it.
+    pub fn cost(self) -> u32 {
+        match self {
+            Bracket::Apprentice => 0,
+            Bracket::Journeyman => 50,
+            Bracket::Expert => 100,
+            Bracket::Artisan => 150,
+        }
+    }
+
+    /// The Classic trainer's skill cap for the rank, for the screens' flavour text.
+    pub fn skill_cap(self) -> u32 {
+        match self {
+            Bracket::Apprentice => 75,
+            Bracket::Journeyman => 150,
+            Bracket::Expert => 225,
+            Bracket::Artisan => 300,
+        }
+    }
+
+    /// The bracket that must be unlocked first.
+    pub fn previous(self) -> Option<Bracket> {
+        match self {
+            Bracket::Apprentice => None,
+            Bracket::Journeyman => Some(Bracket::Apprentice),
+            Bracket::Expert => Some(Bracket::Journeyman),
+            Bracket::Artisan => Some(Bracket::Expert),
+        }
+    }
+}
+
 /// One craftable step of a profession.
 #[derive(Debug, PartialEq)]
 pub struct Recipe {
     /// Stable id in the save file; never reuse or rename one.
     pub key: &'static str,
     pub name: &'static str,
+    /// The trainer rank it needs: where the recipe is learned in WoW Classic.
+    pub bracket: Bracket,
     /// Achievement points spent to craft it.
     pub cost: u32,
     /// The profession's bonus once this is its best recipe, in [`BonusStat`]'s units.
@@ -102,20 +179,29 @@ impl Profession {
     }
 }
 
-const fn r(key: &'static str, name: &'static str, cost: u32, value: f32) -> Recipe {
+/// What every recipe costs, whatever its bracket: the bracket is the gate that grows.
+pub const RECIPE_COST: u32 = 20;
+
+const fn r(key: &'static str, name: &'static str, bracket: Bracket, value: f32) -> Recipe {
     Recipe {
         key,
         name,
-        cost,
+        bracket,
+        cost: RECIPE_COST,
         value,
     }
 }
 
-/// Every profession, in the trainer's alphabetical order.
+use Bracket::{Apprentice as A, Artisan as R, Expert as E, Journeyman as J};
+
+/// Every profession, in the trainer's alphabetical order. Each recipe sits in the bracket where
+/// WoW Classic teaches it (its skill level in the comment), so Rough Dynamite is Apprentice and
+/// Coarse Dynamite already needs Journeyman.
 ///
-/// Costs run 20, 20, 30, 30, 40: 140 points to master one profession, 840 for all six, against
-/// the 940 the achievements give with the game's 9 classes and 16 zones, so a player who does
-/// everything can master everything, and anyone else chooses what to learn first.
+/// 32 recipes at 20 points and the brackets' 300 come to 940, what the achievements give with the
+/// game's 9 classes and 16 zones: a player who does everything can unlock everything, and anyone
+/// else chooses what to learn first.
+#[rustfmt::skip]
 pub static PROFESSIONS: &[Profession] = &[
     Profession {
         key: "alchemy",
@@ -123,16 +209,12 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 2259,
         stat: BonusStat::MaxHealth,
         recipes: &[
-            r("minor-healing-potion", "Minor Healing Potion", 20, 0.10),
-            r("lesser-healing-potion", "Lesser Healing Potion", 20, 0.20),
-            r("healing-potion", "Healing Potion", 30, 0.30),
-            r("greater-healing-potion", "Greater Healing Potion", 30, 0.40),
-            r(
-                "superior-healing-potion",
-                "Superior Healing Potion",
-                40,
-                0.50,
-            ),
+            r("minor-healing-potion", "Minor Healing Potion", A, 0.05),       // skill 1
+            r("lesser-healing-potion", "Lesser Healing Potion", A, 0.10),     // 55
+            r("healing-potion", "Healing Potion", J, 0.20),                   // 110
+            r("greater-healing-potion", "Greater Healing Potion", E, 0.30),   // 155
+            r("superior-healing-potion", "Superior Healing Potion", E, 0.40), // 215
+            r("major-healing-potion", "Major Healing Potion", R, 0.50),       // 275
         ],
     },
     Profession {
@@ -141,16 +223,11 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 2018,
         stat: BonusStat::Damage,
         recipes: &[
-            r("rough-sharpening-stone", "Rough Sharpening Stone", 20, 0.05),
-            r(
-                "coarse-sharpening-stone",
-                "Coarse Sharpening Stone",
-                20,
-                0.10,
-            ),
-            r("heavy-sharpening-stone", "Heavy Sharpening Stone", 30, 0.15),
-            r("solid-sharpening-stone", "Solid Sharpening Stone", 30, 0.20),
-            r("dense-sharpening-stone", "Dense Sharpening Stone", 40, 0.25),
+            r("rough-sharpening-stone", "Rough Sharpening Stone", A, 0.05),   // 1
+            r("coarse-sharpening-stone", "Coarse Sharpening Stone", A, 0.10), // 65
+            r("heavy-sharpening-stone", "Heavy Sharpening Stone", J, 0.15),   // 125
+            r("solid-sharpening-stone", "Solid Sharpening Stone", E, 0.20),   // 200
+            r("dense-sharpening-stone", "Dense Sharpening Stone", R, 0.25),   // 250
         ],
     },
     Profession {
@@ -159,11 +236,12 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 7411,
         stat: BonusStat::Luck,
         recipes: &[
-            r("lesser-magic-wand", "Lesser Magic Wand", 20, 5.0),
-            r("greater-magic-wand", "Greater Magic Wand", 20, 10.0),
-            r("lesser-mystic-wand", "Lesser Mystic Wand", 30, 15.0),
-            r("greater-mystic-wand", "Greater Mystic Wand", 30, 20.0),
-            r("runed-arcanite-rod", "Runed Arcanite Rod", 40, 25.0),
+            r("lesser-magic-wand", "Lesser Magic Wand", A, 5.0),     // 10
+            r("greater-magic-wand", "Greater Magic Wand", A, 10.0),  // 70
+            r("runed-silver-rod", "Runed Silver Rod", J, 15.0),      // 100
+            r("lesser-mystic-wand", "Lesser Mystic Wand", E, 20.0),  // 155
+            r("greater-mystic-wand", "Greater Mystic Wand", E, 25.0), // 175
+            r("runed-arcanite-rod", "Runed Arcanite Rod", R, 30.0),  // 285
         ],
     },
     Profession {
@@ -172,11 +250,11 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 4036,
         stat: BonusStat::Area,
         recipes: &[
-            r("rough-dynamite", "Rough Dynamite", 20, 0.10),
-            r("coarse-dynamite", "Coarse Dynamite", 20, 0.20),
-            r("heavy-dynamite", "Heavy Dynamite", 30, 0.30),
-            r("solid-dynamite", "Solid Dynamite", 30, 0.40),
-            r("dense-dynamite", "Dense Dynamite", 40, 0.50),
+            r("rough-dynamite", "Rough Dynamite", A, 0.10),   // 30
+            r("coarse-dynamite", "Coarse Dynamite", J, 0.20), // 75
+            r("heavy-dynamite", "Heavy Dynamite", J, 0.30),   // 125
+            r("solid-dynamite", "Solid Dynamite", E, 0.40),   // 175
+            r("dense-dynamite", "Dense Dynamite", R, 0.50),   // 250
         ],
     },
     Profession {
@@ -185,11 +263,11 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 2108,
         stat: BonusStat::Armor,
         recipes: &[
-            r("light-armor-kit", "Light Armor Kit", 20, 0.5),
-            r("medium-armor-kit", "Medium Armor Kit", 20, 1.0),
-            r("heavy-armor-kit", "Heavy Armor Kit", 30, 1.5),
-            r("thick-armor-kit", "Thick Armor Kit", 30, 2.0),
-            r("rugged-armor-kit", "Rugged Armor Kit", 40, 2.5),
+            r("light-armor-kit", "Light Armor Kit", A, 0.5),   // 1
+            r("medium-armor-kit", "Medium Armor Kit", J, 1.0), // 100
+            r("heavy-armor-kit", "Heavy Armor Kit", E, 1.5),   // 150
+            r("thick-armor-kit", "Thick Armor Kit", E, 2.0),   // 200
+            r("rugged-armor-kit", "Rugged Armor Kit", R, 2.5), // 250
         ],
     },
     Profession {
@@ -198,11 +276,11 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 3908,
         stat: BonusStat::PickupRange,
         recipes: &[
-            r("linen-bag", "Linen Bag", 20, 0.20),
-            r("woolen-bag", "Woolen Bag", 20, 0.40),
-            r("small-silk-pack", "Small Silk Pack", 30, 0.60),
-            r("mageweave-bag", "Mageweave Bag", 30, 0.80),
-            r("runecloth-bag", "Runecloth Bag", 40, 1.00),
+            r("linen-bag", "Linen Bag", A, 0.20),             // 45
+            r("woolen-bag", "Woolen Bag", J, 0.40),           // 80
+            r("small-silk-pack", "Small Silk Pack", E, 0.60), // 150
+            r("mageweave-bag", "Mageweave Bag", R, 0.80),     // 240
+            r("runecloth-bag", "Runecloth Bag", R, 1.00),     // 260
         ],
     },
 ];
@@ -270,10 +348,17 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn every_profession_is_a_five_step_chain_that_only_improves() {
+    fn every_chain_only_improves_and_climbs_the_brackets() {
         assert_eq!(PROFESSIONS.len(), 6);
         for p in PROFESSIONS {
-            assert_eq!(p.recipes.len(), 5, "{}", p.name);
+            assert!(p.recipes.len() >= 5, "{}", p.name);
+            assert_eq!(p.recipes[0].bracket, Bracket::Apprentice, "{}", p.name);
+            assert_eq!(
+                p.recipes.last().unwrap().bracket,
+                Bracket::Artisan,
+                "{}",
+                p.name
+            );
             for pair in p.recipes.windows(2) {
                 assert!(
                     pair[1].value > pair[0].value,
@@ -281,8 +366,8 @@ mod tests {
                     pair[1].name
                 );
                 assert!(
-                    pair[1].cost >= pair[0].cost,
-                    "{} must not get cheaper",
+                    pair[1].bracket >= pair[0].bracket,
+                    "{} is out of order",
                     pair[1].name
                 );
             }
@@ -290,8 +375,30 @@ mod tests {
     }
 
     #[test]
+    fn every_bracket_has_recipes_and_climbs_in_cost() {
+        for b in Bracket::ALL {
+            assert!(
+                PROFESSIONS
+                    .iter()
+                    .flat_map(|p| p.recipes)
+                    .any(|r| r.bracket == b),
+                "{} has no recipes",
+                b.name()
+            );
+            assert_eq!(Bracket::from_key(b.key()), Some(b));
+        }
+        // The costs asked for: Journeyman 50, Expert 100, and on in steps of 50.
+        assert_eq!(Bracket::ALL.map(Bracket::cost), [0, 50, 100, 150]);
+        assert_eq!(Bracket::Expert.previous(), Some(Bracket::Journeyman));
+        assert_eq!(Bracket::from_key("grandmaster"), None);
+    }
+
+    #[test]
     fn keys_are_unique_and_save_safe() {
         let mut seen = HashSet::new();
+        for b in Bracket::ALL {
+            assert!(seen.insert(b.key()));
+        }
         for p in PROFESSIONS {
             assert!(seen.insert(p.key), "duplicate profession key {}", p.key);
             for r in p.recipes {
@@ -307,25 +414,32 @@ mod tests {
         }
     }
 
-    /// The two examples the feature was asked for, exactly as asked.
+    /// The examples the feature was asked for, exactly as asked.
     #[test]
     fn the_requested_examples_hold() {
         let (p, t, wand) = find_recipe("lesser-magic-wand").unwrap();
         assert_eq!((PROFESSIONS[p].name, t), ("Enchanting", 0));
-        assert_eq!((wand.cost, wand.value), (20, 5.0));
+        assert_eq!(
+            (wand.cost, wand.value, wand.bracket),
+            (20, 5.0, Bracket::Apprentice)
+        );
         assert_eq!(PROFESSIONS[p].stat.format(wand.value), "+5 Luck");
         let (_, t, greater) = find_recipe("greater-magic-wand").unwrap();
         assert_eq!((t, greater.cost, greater.value), (1, 20, 10.0));
 
         let (p, t, rough) = find_recipe("rough-dynamite").unwrap();
         assert_eq!((PROFESSIONS[p].name, t), ("Engineering", 0));
-        assert_eq!(rough.cost, 20);
+        assert_eq!((rough.cost, rough.bracket), (20, Bracket::Apprentice));
         assert_eq!(
             PROFESSIONS[p].stat.format(rough.value),
             "+10% Area of effect"
         );
         let (_, t, coarse) = find_recipe("coarse-dynamite").unwrap();
-        assert_eq!((t, coarse.cost), (1, 20));
+        // A skill 75 recipe in Classic: Journeyman.
+        assert_eq!(
+            (t, coarse.cost, coarse.bracket),
+            (1, 20, Bracket::Journeyman)
+        );
         assert_eq!(
             PROFESSIONS[p].stat.format(coarse.value),
             "+20% Area of effect"

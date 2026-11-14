@@ -1,13 +1,15 @@
 //! Professions for Azeroth Survivors: time spent playing carries over between runs.
 //!
 //! Every run can earn **achievements** ([`achievements`]), each worth achievement points once per
-//! account. Points buy **recipes** in six **professions** ([`professions`]). Each profession is a
-//! chain of five recipes: a recipe needs the one before it, and the best recipe crafted in a
-//! profession gives its bonus to every run the account starts ([`Account::bonuses`]).
+//! account. Points unlock the trainer's **brackets** (Journeyman, Expert, Artisan, as in WoW
+//! Classic) and buy **recipes** in six **professions** ([`professions`]). Each profession is a
+//! chain of recipes: a recipe needs the one before it and its bracket, and the best recipe crafted
+//! in a profession gives its bonus to every run the account starts ([`Account::bonuses`]).
 //!
 //! ```text
+//! Brackets     Apprentice (free) -> Journeyman (50 pts) -> Expert (100 pts) -> Artisan (150 pts)
 //! Enchanting   Lesser Magic Wand (20 pts, +5 Luck) -> Greater Magic Wand (20 pts, +10 Luck) -> ...
-//! Engineering  Rough Dynamite (20 pts, +10% Area)  -> Coarse Dynamite (20 pts, +20% Area)    -> ...
+//! Engineering  Rough Dynamite (20 pts, +10% Area)  -> Coarse Dynamite (Journeyman, +20% Area) -> ...
 //! ```
 //!
 //! The crate holds only the rules and the save format; the game wires the bonuses into its stats
@@ -17,9 +19,9 @@ pub mod account;
 pub mod achievements;
 pub mod professions;
 
-pub use account::{Account, CraftError};
+pub use account::{Account, CraftError, UnlockError};
 pub use achievements::{catalog, Achievement, Category, Condition, Lifetime, RunRecord};
-pub use professions::{BonusStat, Bonuses, Profession, Recipe, PROFESSIONS};
+pub use professions::{BonusStat, Bonuses, Bracket, Profession, Recipe, PROFESSIONS};
 
 /// `10`, `0.5`, `12.5`: a number as the screens print it, with no trailing `.0`.
 pub fn num(v: f32) -> String {

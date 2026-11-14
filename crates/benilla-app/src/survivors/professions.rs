@@ -1,17 +1,19 @@
 //! Professions: the part of a run that outlives it.
 //!
 //! Each run's achievements ([`survivors_professions::achievements`]) earn achievement points for
-//! the account; the Professions panel on the pick screen spends them on recipes, and each
-//! profession's best recipe adds its bonus to every run after ([`super::Run::bonuses`]). The
-//! rules are the `survivors-professions` crate's; this module keeps the account on disk
+//! the account; the menu's Professions tab spends them on the trainer's brackets and on recipes,
+//! and each profession's best recipe adds its bonus to every run after ([`super::Run::bonuses`]).
+//! The rules are the `survivors-professions` crate's; this module keeps the account on disk
 //! (`benilla-config/survivors-account.txt`, `localStorage` on the page), counts runs into it, and
-//! draws the panel and the results screen's line.
+//! draws the menu's tab bar, the Professions page and the results screen's line.
 
 use bevy::prelude::*;
 use survivors_professions::achievements::Category;
-use survivors_professions::{Account, Achievement, Bonuses, CraftError, RunRecord, PROFESSIONS};
+use survivors_professions::{
+    Account, Achievement, Bonuses, Bracket, CraftError, RunRecord, UnlockError, PROFESSIONS,
+};
 
-use super::cards::{COMMON, EPIC, LEGENDARY, RARE, UNCOMMON};
+use super::cards::{COMMON, EPIC, RARE, UNCOMMON};
 use super::hud::{text_bundle, HudFont, SpellIcon, DIM_GREY, GOLD_TONE};
 use super::{data, Phase, Run, Selection};
 use crate::glue::GlueClicks;
@@ -257,6 +259,8 @@ impl Panel {
 pub(super) enum PanelAction {
     Menu(MenuTab),
     Tab(Tab),
+    /// Buy a trainer bracket for every profession.
+    Unlock(Bracket),
     /// `(profession, tier)`.
     Craft(usize, usize),
 }
@@ -280,9 +284,14 @@ pub(super) struct Hover {
     hot: Color,
 }
 
-/// A recipe's quality colour by its place in the chain.
-fn tier_color(tier: usize) -> Color {
-    [COMMON, UNCOMMON, RARE, EPIC, LEGENDARY][tier.min(4)]
+/// A bracket's quality colour, which its recipes wear too.
+fn bracket_color(b: Bracket) -> Color {
+    match b {
+        Bracket::Apprentice => COMMON,
+        Bracket::Journeyman => UNCOMMON,
+        Bracket::Expert => RARE,
+        Bracket::Artisan => EPIC,
+    }
 }
 
 /// The tab bar, and the Professions page under it, both hidden until the menu is up.
@@ -326,10 +335,10 @@ pub(super) fn setup_panel(mut commands: Commands) {
             root.spawn((
                 PanelFrame,
                 Node {
-                    width: Val::Px(INNER_W + 40.0),
+                    width: Val::Px(INNER_W + 32.0),
                     flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(18.0)),
-                    row_gap: Val::Px(10.0),
+                    padding: UiRect::all(Val::Px(14.0)),
+                    row_gap: Val::Px(8.0),
                     border: UiRect::all(Val::Px(2.0)),
                     border_radius: BorderRadius::all(Val::Px(8.0)),
                     ..default()
@@ -399,11 +408,42 @@ pub(super) fn panel_clicks(
                 Err(CraftError::NeedsPrevious(prev)) => {
                     Some((format!("Craft {} before {name}.", prev.name), RED))
                 }
+                Err(CraftError::NeedsBracket(b)) => Some((
+                    format!("{name} needs {} crafting: unlock it first.", b.name()),
+                    RED,
+                )),
                 Err(CraftError::NotEnoughPoints { need, have }) => Some((
                     format!("{name} costs {need} achievement points; you have {have}."),
                     RED,
                 )),
                 Err(CraftError::AlreadyKnown | CraftError::Unknown) => None,
+            };
+        }
+        PanelAction::Unlock(b) => {
+            let profile = &mut *profile;
+            panel.message = match profile.account.unlock(b, &profile.catalog) {
+                Ok(()) => {
+                    profile.save();
+                    Some((
+                        format!(
+                            "{} crafting unlocked: its recipes can now be crafted in every \
+                             profession.",
+                            b.name()
+                        ),
+                        UNCOMMON,
+                    ))
+                }
+                Err(UnlockError::NeedsPrevious(prev)) => {
+                    Some((format!("Unlock {} crafting first.", prev.name()), RED))
+                }
+                Err(UnlockError::NotEnoughPoints { need, have }) => Some((
+                    format!(
+                        "{} crafting costs {need} achievement points; you have {have}.",
+                        b.name()
+                    ),
+                    RED,
+                )),
+                Err(UnlockError::AlreadyUnlocked) => None,
             };
         }
     }
@@ -633,22 +673,25 @@ fn tabs(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile:
     });
 }
 
-/// Six columns, one per profession, each its five recipes top to bottom.
+/// The trainer's brackets across the top, then six columns, one per profession, each its
+/// recipes top to bottom.
 fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
+    brackets(ui, f, profile);
     let n = PROFESSIONS.len() as f32;
     let col_w = ((INNER_W - COLUMN_GAP * (n - 1.0)) / n).floor();
     let points = profile.points();
+    let account = &profile.account;
     ui.spawn(Node {
         column_gap: Val::Px(COLUMN_GAP),
         ..default()
     })
     .with_children(|row| {
         for (p, prof) in PROFESSIONS.iter().enumerate() {
-            let tier = profile.account.tier(prof);
+            let tier = account.tier(prof);
             row.spawn(Node {
                 width: Val::Px(col_w),
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(6.0),
+                row_gap: Val::Px(4.0),
                 ..default()
             })
             .with_children(|col| {
@@ -660,8 +703,8 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                 .with_children(|h| {
                     h.spawn((
                         Node {
-                            width: Val::Px(32.0),
-                            height: Val::Px(32.0),
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
                             ..default()
                         },
                         ImageNode {
@@ -670,9 +713,9 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                         },
                         SpellIcon(prof.icon_spell),
                     ));
-                    h.spawn(text_bundle(f, prof.name, 16.0, GOLD));
+                    h.spawn(text_bundle(f, prof.name, 15.0, GOLD));
                 });
-                col.spawn(text_bundle(f, prof.stat.effect(), 11.0, DIM));
+                col.spawn(text_bundle(f, prof.stat.effect(), 10.0, DIM));
                 let now = match tier {
                     Some(t) => prof.stat.format(prof.recipes[t].value),
                     None => "Nothing crafted yet".into(),
@@ -680,15 +723,29 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                 col.spawn(text_bundle(
                     f,
                     now,
-                    13.0,
+                    12.0,
                     if tier.is_some() { UNCOMMON } else { DIM },
                 ));
                 for (t, recipe) in prof.recipes.iter().enumerate() {
-                    let known = profile.account.knows(recipe.key);
-                    let open = tier.map_or(t == 0, |k| t == k + 1);
+                    let known = account.knows(recipe.key);
+                    let next = tier.map_or(t == 0, |k| t == k + 1);
+                    let bracket_open = account.has_bracket(recipe.bracket);
+                    // The bracket is the bigger gate, so it is the one named first.
                     let (base, edge, status, status_color) = if known {
-                        (CELL_KNOWN, tier_color(t), "Known".to_string(), UNCOMMON)
-                    } else if !open {
+                        (
+                            CELL_KNOWN,
+                            bracket_color(recipe.bracket),
+                            "Known".to_string(),
+                            UNCOMMON,
+                        )
+                    } else if !bracket_open {
+                        (
+                            CELL_LOCKED,
+                            Color::srgb(0.25, 0.25, 0.25),
+                            format!("Requires {}", recipe.bracket.name()),
+                            DIM,
+                        )
+                    } else if !next {
                         (
                             CELL_LOCKED,
                             Color::srgb(0.25, 0.25, 0.25),
@@ -700,18 +757,20 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                     } else {
                         (CELL, EDGE, format!("Needs {} points", recipe.cost), RED)
                     };
-                    let name_color = if known || open {
-                        tier_color(t)
+                    let open = !known && bracket_open && next;
+                    let shown = known || open;
+                    let name_color = if shown {
+                        bracket_color(recipe.bracket)
                     } else {
                         Color::srgb(0.45, 0.45, 0.45)
                     };
                     let mut cell = col.spawn((
                         Node {
                             width: Val::Px(col_w),
-                            min_height: Val::Px(72.0),
+                            min_height: Val::Px(54.0),
                             flex_direction: FlexDirection::Column,
-                            padding: UiRect::axes(Val::Px(7.0), Val::Px(6.0)),
-                            row_gap: Val::Px(2.0),
+                            padding: UiRect::axes(Val::Px(6.0), Val::Px(4.0)),
+                            row_gap: Val::Px(1.0),
                             border: UiRect::all(Val::Px(1.0)),
                             border_radius: BorderRadius::all(Val::Px(5.0)),
                             ..default()
@@ -719,9 +778,9 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                         BackgroundColor(base),
                         BorderColor::all(edge),
                     ));
-                    // Only the next recipe in the chain takes a click; a known or locked one is
-                    // just shown.
-                    if open && !known {
+                    // Only the next recipe in the chain, in an unlocked bracket, takes a click; a
+                    // known or locked one is just shown.
+                    if open {
                         cell.insert((
                             PanelAction::Craft(p, t),
                             Button,
@@ -732,16 +791,104 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                         ));
                     }
                     cell.with_children(|c| {
-                        c.spawn(text_bundle(f, recipe.name, 13.0, name_color));
+                        c.spawn(text_bundle(f, recipe.name, 12.0, name_color));
                         c.spawn(text_bundle(
                             f,
                             prof.stat.format(recipe.value),
-                            12.0,
-                            if known || open { Color::WHITE } else { DIM },
+                            11.0,
+                            if shown { Color::WHITE } else { DIM },
                         ));
-                        c.spawn(text_bundle(f, status, 11.0, status_color));
+                        c.spawn(text_bundle(f, status, 10.0, status_color));
                     });
                 }
+            });
+        }
+    });
+}
+
+/// The four trainer brackets, each for every profession: Apprentice from the start, the rest
+/// bought in order with achievement points.
+fn brackets(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
+    let n = Bracket::ALL.len() as f32;
+    let box_w = ((INNER_W - COLUMN_GAP * (n - 1.0)) / n).floor();
+    let account = &profile.account;
+    ui.spawn(Node {
+        column_gap: Val::Px(COLUMN_GAP),
+        ..default()
+    })
+    .with_children(|row| {
+        for b in Bracket::ALL {
+            let color = bracket_color(b);
+            let (base, edge, status, status_color, clickable) = if account.has_bracket(b) {
+                (CELL_KNOWN, color, "Unlocked".to_string(), UNCOMMON, false)
+            } else {
+                match account.check_unlock(b, &profile.catalog) {
+                    Ok(()) => (
+                        CELL,
+                        GOLD,
+                        format!("Unlock: {} points", b.cost()),
+                        GOLD,
+                        true,
+                    ),
+                    Err(UnlockError::NeedsPrevious(prev)) => (
+                        CELL_LOCKED,
+                        Color::srgb(0.25, 0.25, 0.25),
+                        format!("Requires {}, then {} points", prev.name(), b.cost()),
+                        DIM,
+                        false,
+                    ),
+                    Err(UnlockError::NotEnoughPoints { need, .. }) => {
+                        (CELL, EDGE, format!("Needs {need} points"), RED, false)
+                    }
+                    Err(UnlockError::AlreadyUnlocked) => {
+                        (CELL_KNOWN, color, "Unlocked".to_string(), UNCOMMON, false)
+                    }
+                }
+            };
+            let mut cell = row.spawn((
+                Node {
+                    width: Val::Px(box_w),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
+                    row_gap: Val::Px(1.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    border_radius: BorderRadius::all(Val::Px(5.0)),
+                    ..default()
+                },
+                BackgroundColor(base),
+                BorderColor::all(edge),
+            ));
+            if clickable {
+                cell.insert((
+                    PanelAction::Unlock(b),
+                    Button,
+                    Hover {
+                        base,
+                        hot: CELL_HOT,
+                    },
+                ));
+            }
+            cell.with_children(|c| {
+                c.spawn(Node {
+                    justify_content: JustifyContent::SpaceBetween,
+                    align_items: AlignItems::End,
+                    ..default()
+                })
+                .with_children(|top| {
+                    top.spawn(text_bundle(
+                        f,
+                        format!("{} crafting", b.name()),
+                        14.0,
+                        color,
+                    ));
+                    top.spawn(text_bundle(
+                        f,
+                        format!("skill {}", b.skill_cap()),
+                        10.0,
+                        DIM,
+                    ));
+                });
+                c.spawn(text_bundle(f, status, 11.0, status_color));
             });
         }
     });

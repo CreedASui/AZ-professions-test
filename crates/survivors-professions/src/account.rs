@@ -1,14 +1,14 @@
 //! The account: what every run so far has earned, and what it was spent on.
 //!
 //! Points are never stored. Earned points are the sum of the achievements earned, spent points the
-//! sum of the recipes crafted, so a save cannot drift out of step with itself and a rebalanced cost
-//! applies to old saves too.
+//! sum of the brackets unlocked and the recipes crafted, so a save cannot drift out of step with
+//! itself and a rebalanced cost applies to old saves too.
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use crate::achievements::{Achievement, Lifetime, RunRecord};
-use crate::professions::{find_recipe, Bonuses, Profession, Recipe, PROFESSIONS};
+use crate::professions::{find_recipe, Bonuses, Bracket, Profession, Recipe, PROFESSIONS};
 
 /// Why a recipe cannot be crafted.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -18,6 +18,20 @@ pub enum CraftError {
     AlreadyKnown,
     /// The recipe before it in the chain comes first.
     NeedsPrevious(&'static Recipe),
+    /// Its bracket is not unlocked yet.
+    NeedsBracket(Bracket),
+    NotEnoughPoints {
+        need: u32,
+        have: u32,
+    },
+}
+
+/// Why a bracket cannot be unlocked.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum UnlockError {
+    AlreadyUnlocked,
+    /// The bracket before it comes first.
+    NeedsPrevious(Bracket),
     NotEnoughPoints {
         need: u32,
         have: u32,
@@ -30,6 +44,8 @@ pub struct Account {
     earned: BTreeSet<String>,
     /// Keys of the recipes crafted.
     crafted: BTreeSet<String>,
+    /// The brackets unlocked past Apprentice, which every account knows.
+    brackets: BTreeSet<Bracket>,
     pub lifetime: Lifetime,
 }
 
@@ -45,6 +61,19 @@ impl Account {
         self.crafted.contains(recipe)
     }
 
+    pub fn has_bracket(&self, bracket: Bracket) -> bool {
+        bracket == Bracket::Apprentice || self.brackets.contains(&bracket)
+    }
+
+    /// The best bracket unlocked.
+    pub fn bracket(&self) -> Bracket {
+        Bracket::ALL
+            .into_iter()
+            .rev()
+            .find(|&b| self.has_bracket(b))
+            .unwrap_or(Bracket::Apprentice)
+    }
+
     pub fn earned_count(&self, catalog: &[Achievement]) -> usize {
         catalog.iter().filter(|a| self.has_earned(&a.key)).count()
     }
@@ -58,13 +87,16 @@ impl Account {
             .sum()
     }
 
-    /// Points spent on every recipe crafted that the game still has.
+    /// Points spent on every bracket unlocked and every recipe crafted that the game still has.
     pub fn points_spent(&self) -> u32 {
-        self.crafted
+        let recipes: u32 = self
+            .crafted
             .iter()
             .filter_map(|k| find_recipe(k))
             .map(|(_, _, r)| r.cost)
-            .sum()
+            .sum();
+        let brackets: u32 = self.brackets.iter().map(|b| b.cost()).sum();
+        recipes + brackets
     }
 
     pub fn points_available(&self, catalog: &[Achievement]) -> u32 {
@@ -84,6 +116,38 @@ impl Account {
             .checked_sub(1)
     }
 
+    /// Whether `bracket` can be unlocked now.
+    pub fn check_unlock(
+        &self,
+        bracket: Bracket,
+        catalog: &[Achievement],
+    ) -> Result<(), UnlockError> {
+        if self.has_bracket(bracket) {
+            return Err(UnlockError::AlreadyUnlocked);
+        }
+        if let Some(prev) = bracket.previous() {
+            if !self.has_bracket(prev) {
+                return Err(UnlockError::NeedsPrevious(prev));
+            }
+        }
+        let have = self.points_available(catalog);
+        if have < bracket.cost() {
+            return Err(UnlockError::NotEnoughPoints {
+                need: bracket.cost(),
+                have,
+            });
+        }
+        Ok(())
+    }
+
+    /// Unlock the bracket: its points are spent, and its recipes can be crafted in every
+    /// profession.
+    pub fn unlock(&mut self, bracket: Bracket, catalog: &[Achievement]) -> Result<(), UnlockError> {
+        self.check_unlock(bracket, catalog)?;
+        self.brackets.insert(bracket);
+        Ok(())
+    }
+
     /// Whether the recipe at `tier` of the profession at index `profession` can be crafted now.
     pub fn check_craft(
         &self,
@@ -100,6 +164,9 @@ impl Account {
             if !self.knows(prev.key) {
                 return Err(CraftError::NeedsPrevious(prev));
             }
+        }
+        if !self.has_bracket(recipe.bracket) {
+            return Err(CraftError::NeedsBracket(recipe.bracket));
         }
         let have = self.points_available(catalog);
         if have < recipe.cost {
@@ -161,6 +228,9 @@ impl Account {
         for k in &self.earned {
             let _ = writeln!(out, "achievement {k}");
         }
+        for b in &self.brackets {
+            let _ = writeln!(out, "bracket {}", b.key());
+        }
         for k in &self.crafted {
             let _ = writeln!(out, "recipe {k}");
         }
@@ -179,6 +249,11 @@ impl Account {
                 }
                 (Some("recipe"), Some(k), None) => {
                     a.crafted.insert(k.to_string());
+                }
+                (Some("bracket"), Some(k), None) => {
+                    if let Some(b) = Bracket::from_key(k).filter(|&b| b != Bracket::Apprentice) {
+                        a.brackets.insert(b);
+                    }
                 }
                 (Some("lifetime"), Some(field), Some(v)) => {
                     let l = &mut a.lifetime;
@@ -211,6 +286,7 @@ mod tests {
     use crate::achievements::{catalog, Category, Condition};
     use crate::BonusStat;
 
+    const BLACKSMITHING: usize = 1;
     const ENCHANTING: usize = 2;
     const ENGINEERING: usize = 3;
 
@@ -256,13 +332,90 @@ mod tests {
     fn crafting_spends_points_and_stops_when_they_run_out() {
         let (mut a, cat) = rich(50);
         assert_eq!(a.points_available(&cat), 50);
-        a.craft(ENGINEERING, 0, &cat).unwrap();
-        a.craft(ENGINEERING, 1, &cat).unwrap();
+        a.craft(ENCHANTING, 0, &cat).unwrap();
+        a.craft(ENCHANTING, 1, &cat).unwrap();
         assert_eq!((a.points_spent(), a.points_available(&cat)), (40, 10));
         assert_eq!(
-            a.craft(ENGINEERING, 2, &cat),
-            Err(CraftError::NotEnoughPoints { need: 30, have: 10 })
+            a.craft(BLACKSMITHING, 0, &cat),
+            Err(CraftError::NotEnoughPoints { need: 20, have: 10 })
         );
+    }
+
+    /// Journeyman 50, Expert 100, Artisan 150, each after the one before.
+    #[test]
+    fn brackets_unlock_in_order_and_cost_points() {
+        let (mut a, cat) = rich(300);
+        assert!(
+            a.has_bracket(Bracket::Apprentice),
+            "every account starts as an Apprentice"
+        );
+        assert_eq!(a.bracket(), Bracket::Apprentice);
+        assert_eq!(
+            a.unlock(Bracket::Apprentice, &cat),
+            Err(UnlockError::AlreadyUnlocked)
+        );
+        assert_eq!(
+            a.unlock(Bracket::Expert, &cat),
+            Err(UnlockError::NeedsPrevious(Bracket::Journeyman))
+        );
+        a.unlock(Bracket::Journeyman, &cat).unwrap();
+        a.unlock(Bracket::Expert, &cat).unwrap();
+        assert_eq!(a.bracket(), Bracket::Expert);
+        assert_eq!((a.points_spent(), a.points_available(&cat)), (150, 150));
+        a.unlock(Bracket::Artisan, &cat).unwrap();
+        assert_eq!(a.points_available(&cat), 0);
+        assert_eq!(
+            a.unlock(Bracket::Artisan, &cat),
+            Err(UnlockError::AlreadyUnlocked)
+        );
+        let (poor, cat) = rich(40);
+        assert_eq!(
+            poor.check_unlock(Bracket::Journeyman, &cat),
+            Err(UnlockError::NotEnoughPoints { need: 50, have: 40 })
+        );
+    }
+
+    /// The asked-for gate: Coarse Dynamite waits for Journeyman crafting.
+    #[test]
+    fn a_recipe_waits_for_its_bracket() {
+        let (mut a, cat) = rich(200);
+        a.craft(ENGINEERING, 0, &cat).unwrap();
+        assert_eq!(
+            a.craft(ENGINEERING, 1, &cat),
+            Err(CraftError::NeedsBracket(Bracket::Journeyman))
+        );
+        a.unlock(Bracket::Journeyman, &cat).unwrap();
+        assert_eq!(
+            a.craft(ENGINEERING, 1, &cat).map(|r| r.key),
+            Ok("coarse-dynamite")
+        );
+        // Heavy Dynamite is Journeyman too; Solid Dynamite needs Expert.
+        a.craft(ENGINEERING, 2, &cat).unwrap();
+        assert_eq!(
+            a.craft(ENGINEERING, 3, &cat),
+            Err(CraftError::NeedsBracket(Bracket::Expert))
+        );
+        assert_eq!(a.bonuses().area, 0.30);
+        assert_eq!(a.points_spent(), 3 * 20 + 50);
+    }
+
+    /// Everything the achievements can give buys everything there is.
+    #[test]
+    fn the_whole_catalog_buys_every_bracket_and_recipe() {
+        let cat = catalog(CLASSES, ZONES);
+        let total: u32 = cat.iter().map(|x| x.points).sum();
+        let (mut a, cat) = rich(total);
+        for b in Bracket::ALL.into_iter().skip(1) {
+            a.unlock(b, &cat).unwrap();
+        }
+        for (p, prof) in PROFESSIONS.iter().enumerate() {
+            for t in 0..prof.recipes.len() {
+                a.craft(p, t, &cat).unwrap();
+            }
+        }
+        assert_eq!(a.points_available(&cat), 0);
+        let b = a.bonuses();
+        assert_eq!((b.luck, b.area, b.damage), (30.0, 0.5, 0.25));
     }
 
     #[test]
@@ -354,7 +507,10 @@ mod tests {
         a.craft(ENCHANTING, 0, &cat).unwrap();
         a.craft(ENCHANTING, 1, &cat).unwrap();
         a.craft(ENGINEERING, 0, &cat).unwrap();
+        a.unlock(Bracket::Journeyman, &cat).unwrap();
+        a.craft(ENGINEERING, 1, &cat).unwrap();
         let text = a.to_text();
+        assert!(text.contains("\nbracket journeyman\n"), "{text}");
         assert!(text.starts_with(HEADER));
         let back = Account::from_text(&text);
         // Seconds are kept to a tenth.
@@ -380,6 +536,9 @@ mod tests {
              achievement\n\
              recipe rough-dynamite extra-word\n\
              recipe lesser-magic-wand\n\
+             bracket grandmaster\n\
+             bracket apprentice\n\
+             bracket expert\n\
              pet-battles enabled\n\
              \u{0}\u{1}garbage",
         );
@@ -389,6 +548,12 @@ mod tests {
         assert!(a.has_earned("win"));
         assert!(a.knows("lesser-magic-wand"));
         assert!(!a.knows("rough-dynamite"));
+        assert!(a.has_bracket(Bracket::Expert));
+        assert_eq!(
+            a.brackets.len(),
+            1,
+            "unknown and Apprentice brackets are not stored"
+        );
         assert_eq!(Account::from_text(""), Account::default());
     }
 
