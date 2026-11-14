@@ -39,7 +39,7 @@ impl BonusStat {
         match self {
             BonusStat::Luck => "Luck",
             BonusStat::Damage => "Damage",
-            BonusStat::MaxHealth => "Maximum health",
+            BonusStat::MaxHealth => "Max health",
             BonusStat::Area => "Area of effect",
             BonusStat::Armor => "Armor",
             BonusStat::PickupRange => "Pickup range",
@@ -54,7 +54,7 @@ impl BonusStat {
             BonusStat::MaxHealth => "Your maximum health",
             BonusStat::Area => "Size of your areas of effect",
             BonusStat::Armor => "Damage blocked per hit",
-            BonusStat::PickupRange => "Range you collect experience from",
+            BonusStat::PickupRange => "Experience pickup range",
         }
     }
 

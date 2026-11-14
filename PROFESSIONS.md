@@ -21,6 +21,12 @@ into small permanent bonuses for the whole account:
    Lesser Magic Wand: bonuses within a profession don't stack, the best one counts. Bonuses from
    different professions do add up.
 
+![The Professions tab: the four brackets, then a column per profession with its four items, one row per bracket](docs/screenshots/professions-preview.png)
+
+*A preview of the tab, rendered from its own code without WoW's data: a stand-in font for Friz
+Quadrata, blank spell icons and no world behind the page. Regenerate it with the command under
+[Tuning](#tuning).*
+
 ```
 Brackets     Apprentice (free) -> Journeyman (50 pts) -> Expert (100 pts) -> Artisan (150 pts)
 Enchanting   Lesser Magic Wand (20 pts) +5 Luck   ->  Greater Magic Wand (20 pts) +10 Luck   -> ...
@@ -128,6 +134,10 @@ everything it can.
   the recipes' cost is `RECIPE_COST`, the brackets' `Bracket::cost`.
 - **Achievements and their points:** `GENERAL`, `CLASS_WIN_POINTS`, `ZONE_WIN_POINTS` and
   `ZONE_SURVIVE_POINTS` in `crates/survivors-professions/src/achievements.rs`.
+- **Seeing the tab without the game:** the preview above (and one of the achievements, and one at
+  4:3) comes from an ignored test that renders the tab's own code offscreen. It needs a GPU
+  adapter, but a CPU one is enough (Mesa's lavapipe: `apt-get install mesa-vulkan-drivers`):
+  `PROFESSIONS_PREVIEW=<dir> cargo test -p benilla-app --lib render_professions_tab -- --ignored`.
 - Save keys (`lesser-magic-wand`, `survive-5m`, …) are the save format: rename a recipe's `name`
   freely, but never its `key`.
 - `cargo test -p survivors-professions` checks that every profession has one item per bracket,

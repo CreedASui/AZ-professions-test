@@ -149,6 +149,7 @@ impl Plugin for SurvivorsPlugin {
                     professions::build_tabs,
                     professions::build_panel,
                     professions::show_panel,
+                    professions::fit_panel,
                     professions::hover_cells,
                     professions::refresh_results_line,
                     professions::record_on_exit,
