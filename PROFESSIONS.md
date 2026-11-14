@@ -8,7 +8,8 @@ into small permanent bonuses for the whole account:
    per account.
 2. **Points unlock brackets and buy recipes.** The menu has a **Professions** tab next to
    **Hero** (the pick screen), at the top: the trainer's brackets, then six professions with one
-   item per bracket, and the bonuses every run gets now. The tab's label shows the points waiting
+   item per bracket, and a **Bonuses** line listing what every run gets now (each profession's
+   best item, in the columns' order). The tab's label shows the points waiting
    to be spent, e.g. *Professions (35)*. **Esc** goes back to Hero. (Achievements have no screen
    of their own: the results screen says what each run earned.)
 3. **Brackets gate the recipes, as WoW Classic's trainer ranks do.** Every account is an

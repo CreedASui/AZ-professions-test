@@ -901,6 +901,16 @@ fn brackets(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) 
         });
 }
 
+/// The footer's line: what every run gets now, one entry per profession with something crafted,
+/// each its best item's total, in the columns' order.
+fn bonuses_line(bonuses: &Bonuses) -> String {
+    if bonuses.is_empty() {
+        "Bonuses: none yet. Craft an item and every run after gets its bonus.".into()
+    } else {
+        format!("Bonuses: {}", bonuses.lines().join(", "))
+    }
+}
+
 /// The bonuses every run gets now, the last craft's answer, and the way back.
 fn footer(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile: &Profile) {
     let bonuses = profile.bonuses();
@@ -918,21 +928,8 @@ fn footer(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profil
             ..default()
         })
         .with_children(|c| {
-            if bonuses.is_empty() {
-                c.spawn(text_bundle(
-                    f,
-                    "No bonuses yet: craft a recipe and every run after gets its bonus.",
-                    14.0,
-                    DIM,
-                ));
-            } else {
-                c.spawn(text_bundle(
-                    f,
-                    format!("Every run: {}", bonuses.lines().join(", ")),
-                    14.0,
-                    UNCOMMON,
-                ));
-            }
+            let color = if bonuses.is_empty() { DIM } else { UNCOMMON };
+            c.spawn(text_bundle(f, bonuses_line(&bonuses), 14.0, color));
             if let Some((msg, color)) = &panel.message {
                 c.spawn(text_bundle(f, msg.clone(), 13.0, *color));
             }
@@ -967,6 +964,38 @@ mod tests {
             .map(|r| r.cost)
             .sum();
         assert!(earnable >= costs, "{earnable} points cannot buy {costs}");
+    }
+
+    /// The footer shows each profession's best item, not their sum, and nothing for a profession
+    /// with nothing crafted.
+    #[test]
+    fn the_bonuses_line_shows_the_stats_the_account_has() {
+        let mut p = profile();
+        assert_eq!(
+            bonuses_line(&p.bonuses()),
+            "Bonuses: none yet. Craft an item and every run after gets its bonus."
+        );
+        let run = RunRecord {
+            class_id: 8,
+            zone: 0,
+            seconds: 900.0,
+            level: 30,
+            kills: 3000,
+            bosses_slain: 5,
+            won: true,
+        };
+        p.account.record_run(&run, &p.catalog);
+        p.account
+            .unlock(survivors_professions::Bracket::Journeyman, &p.catalog)
+            .unwrap();
+        // Both wands, both dynamites, the first potion and the first armor kit.
+        for (prof, tier) in [(2, 0), (2, 1), (3, 0), (3, 1), (0, 0), (4, 0)] {
+            p.account.craft(prof, tier, &p.catalog).unwrap();
+        }
+        assert_eq!(
+            bonuses_line(&p.bonuses()),
+            "Bonuses: +10% Max health, +10 Luck, +20% Area of effect, +4% Damage reduction"
+        );
     }
 
     #[test]

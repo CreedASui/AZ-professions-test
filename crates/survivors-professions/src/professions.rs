@@ -26,10 +26,12 @@ pub enum BonusStat {
 }
 
 impl BonusStat {
+    /// In the professions' order (Alchemy, Blacksmithing, Enchanting, Engineering, Leatherworking,
+    /// Tailoring), so a list of bonuses reads like the professions' columns.
     pub const ALL: [BonusStat; 6] = [
-        BonusStat::Luck,
-        BonusStat::Damage,
         BonusStat::MaxHealth,
+        BonusStat::Damage,
+        BonusStat::Luck,
         BonusStat::Area,
         BonusStat::DamageReduction,
         BonusStat::PickupRange,
@@ -421,6 +423,12 @@ mod tests {
             PROFESSIONS[p].stat.format(coarse.value),
             "+20% Area of effect"
         );
+    }
+
+    #[test]
+    fn stats_are_listed_in_the_professions_order() {
+        let order: Vec<BonusStat> = PROFESSIONS.iter().map(|p| p.stat).collect();
+        assert_eq!(order, BonusStat::ALL);
     }
 
     #[test]
