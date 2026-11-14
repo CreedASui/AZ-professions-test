@@ -411,6 +411,7 @@ pub(super) fn panel_clicks(
 
 /// The tab bar is up on the menu; the Professions page when its tab is picked. The pick screen's
 /// own root hides itself meanwhile ([`super::hud::show_panels`]).
+#[allow(clippy::type_complexity)]
 pub(super) fn show_panel(
     phase: Res<State<Phase>>,
     panel: Res<Panel>,
