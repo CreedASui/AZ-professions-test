@@ -15,7 +15,8 @@ into small permanent bonuses for the whole account:
    **Apprentice**; **Journeyman** crafting costs **50** points, **Expert** **100** and **Artisan**
    **150**, each after the one before. A bracket is for the whole account: unlocking Journeyman
    opens the Journeyman recipes of every profession.
-4. **A recipe costs 20 points** and needs the recipe before it and its bracket.
+4. **Each profession has one item per bracket**, each costing 20 points and needing the item
+   before it and its bracket.
 5. **The best recipe in each profession boosts every run.** A Greater Magic Wand *replaces* the
    Lesser Magic Wand: bonuses within a profession don't stack, the best one counts. Bonuses from
    different professions do add up.
@@ -28,39 +29,42 @@ Engineering  Rough Dynamite    (20 pts) +10% Area ->  Coarse Dynamite (Journeyma
 
 ## The professions
 
-Each recipe sits in the bracket where WoW Classic's trainers teach it, after the
+Each profession has **one item per bracket**, four in all, and each is a permanent upgrade for the
+whole account. Every item is one WoW Classic's trainers teach in that bracket, after the
 [WoW-Professions Classic guides](https://www.wow-professions.com/classic) (Apprentice up to skill
-75, Journeyman 150, Expert 225, Artisan 300). That's why Coarse Dynamite (skill 75) already needs
-Journeyman while Greater Magic Wand (skill 70) doesn't. The skill level is beside each recipe in
-`crates/survivors-professions/src/professions.rs`.
+75, Journeyman 150, Expert 225, Artisan 300). Greater Magic Wand is learned at skill 70 but the
+guide crafts it at 101-110, and Coarse Dynamite is learned at 75 and crafted at 90-100, so both are
+the Journeyman step, which keeps the two original examples whole. The skill levels are beside each
+item in `crates/survivors-professions/src/professions.rs`.
 
-| Profession | Raises | Apprentice | Journeyman | Expert | Artisan |
+| Profession | Upgrades | Apprentice | Journeyman | Expert | Artisan |
 |---|---|---|---|---|---|
-| Alchemy | Maximum health | Minor Healing Potion +5%, Lesser Healing Potion +10% | Healing Potion +20% | Greater Healing Potion +30%, Superior Healing Potion +40% | Major Healing Potion +50% |
-| Blacksmithing | All damage | Rough Sharpening Stone +5%, Coarse Sharpening Stone +10% | Heavy Sharpening Stone +15% | Solid Sharpening Stone +20% | Dense Sharpening Stone +25% |
-| Enchanting | Luck | Lesser Magic Wand +5, Greater Magic Wand +10 | Runed Silver Rod +15 | Lesser Mystic Wand +20, Greater Mystic Wand +25 | Runed Arcanite Rod +30 |
-| Engineering | Area of effect | Rough Dynamite +10% | Coarse Dynamite +20%, Heavy Dynamite +30% | Solid Dynamite +40% | Dense Dynamite +50% |
-| Leatherworking | Armor (damage blocked per hit) | Light Armor Kit +0.5 | Medium Armor Kit +1 | Heavy Armor Kit +1.5, Thick Armor Kit +2 | Rugged Armor Kit +2.5 |
-| Tailoring | Pickup range | Linen Bag +20% | Woolen Bag +40% | Small Silk Pack +60% | Mageweave Bag +80%, Runecloth Bag +100% |
+| Alchemy | Maximum health | Minor Healing Potion +10% | Healing Potion +20% | Greater Healing Potion +30% | Major Healing Potion +40% |
+| Blacksmithing | All damage | Rough Sharpening Stone +5% | Heavy Sharpening Stone +10% | Solid Sharpening Stone +15% | Dense Sharpening Stone +20% |
+| Enchanting | Luck | Lesser Magic Wand +5 | Greater Magic Wand +10 | Greater Mystic Wand +15 | Runed Arcanite Rod +20 |
+| Engineering | Area of effect | Rough Dynamite +10% | Coarse Dynamite +20% | Solid Dynamite +30% | Dense Dynamite +40% |
+| Leatherworking | Armor (damage blocked per hit) | Light Armor Kit +0.5 | Medium Armor Kit +1 | Heavy Armor Kit +1.5 | Rugged Armor Kit +2 |
+| Tailoring | Pickup range | Linen Bag +20% | Woolen Bag +40% | Small Silk Pack +60% | Runecloth Bag +80% |
 
-Within a profession, recipes are crafted left to right; the bonus shown is the profession's total
-once that recipe is its best.
+Within a profession, items are crafted left to right, each for 20 points; the bonus shown is the
+profession's total once that item is its best.
 
 **Luck** is new in this build: it is the percent chance that a level-up deals a **fourth card**
 to choose from (press **4** or click it). Only Enchanting raises it.
 
 How the numbers were picked: the examples from the original idea are kept exactly (the wands'
 +5/+10 Luck and the dynamites' +10%/+20% Area at 20 points each; Journeyman 50, Expert 100, with
-Artisan continuing the step at 150) and continued in steps of the same size. For the other
-stats, the top recipe is worth about two and a half levels of the matching in-run passive
-(Blessing of Might gives +10% damage a level, so the top sharpening stone gives +25%). Everything
-is in one table and easy to rebalance: see [Tuning](#tuning).
+Artisan continuing the step at 150) and every profession climbs in four equal steps. For the
+other stats, the top item is worth about two levels of the matching in-run passive (Blessing of
+Might gives +10% damage a level, so the top sharpening stone gives +20%). Everything is in one
+table and easy to rebalance: see [Tuning](#tuning).
 
 ## The achievements
 
-71 achievements worth **940 points**: exactly what the three brackets (300) and all 32 recipes
-(640) cost. A player who does everything can unlock everything, and everyone else chooses what to
-learn first: one profession to the top, or the first steps of all six.
+71 achievements worth **940 points**, against **780** for everything: the three brackets (300)
+and all 24 items (480). A player who does everything can unlock everything with points to spare,
+and everyone else chooses what to learn first: one profession to the top, or the first steps of
+all six.
 
 | Category | What | Achievements | Points |
 |---|---|---|---|
@@ -126,9 +130,9 @@ everything it can.
   `ZONE_SURVIVE_POINTS` in `crates/survivors-professions/src/achievements.rs`.
 - Save keys (`lesser-magic-wand`, `survive-5m`, …) are the save format: rename a recipe's `name`
   freely, but never its `key`.
-- `cargo test -p survivors-professions` checks that every chain only improves and climbs the
-  brackets in order, that every bracket has recipes, that every key is unique and save-safe, and
-  that the achievements give enough points to unlock everything.
+- `cargo test -p survivors-professions` checks that every profession has one item per bracket,
+  each better than the last, that every key is unique and save-safe, and that the achievements
+  give enough points to unlock everything.
 
 ## Bringing it to the official game
 

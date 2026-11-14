@@ -673,8 +673,8 @@ fn tabs(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, panel: &Panel, profile:
     });
 }
 
-/// The trainer's brackets across the top, then six columns, one per profession, each its
-/// recipes top to bottom.
+/// The trainer's brackets across the top, then six columns, one per profession, each its four
+/// items top to bottom, one per bracket, so every row is a bracket.
 fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
     brackets(ui, f, profile);
     let n = PROFESSIONS.len() as f32;
@@ -767,10 +767,10 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                     let mut cell = col.spawn((
                         Node {
                             width: Val::Px(col_w),
-                            min_height: Val::Px(54.0),
+                            min_height: Val::Px(64.0),
                             flex_direction: FlexDirection::Column,
-                            padding: UiRect::axes(Val::Px(6.0), Val::Px(4.0)),
-                            row_gap: Val::Px(1.0),
+                            padding: UiRect::axes(Val::Px(7.0), Val::Px(6.0)),
+                            row_gap: Val::Px(2.0),
                             border: UiRect::all(Val::Px(1.0)),
                             border_radius: BorderRadius::all(Val::Px(5.0)),
                             ..default()
@@ -791,14 +791,14 @@ fn recipes(ui: &mut ChildSpawnerCommands, f: &Handle<Font>, profile: &Profile) {
                         ));
                     }
                     cell.with_children(|c| {
-                        c.spawn(text_bundle(f, recipe.name, 12.0, name_color));
+                        c.spawn(text_bundle(f, recipe.name, 13.0, name_color));
                         c.spawn(text_bundle(
                             f,
                             prof.stat.format(recipe.value),
-                            11.0,
+                            12.0,
                             if shown { Color::WHITE } else { DIM },
                         ));
-                        c.spawn(text_bundle(f, status, 10.0, status_color));
+                        c.spawn(text_bundle(f, status, 11.0, status_color));
                     });
                 }
             });

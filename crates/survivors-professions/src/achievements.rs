@@ -330,7 +330,7 @@ pub(crate) mod tests {
             .map(|r| r.cost)
             .sum();
         let brackets: u32 = Bracket::ALL.iter().map(|b| b.cost()).sum();
-        assert_eq!((recipes, brackets), (640, 300));
+        assert_eq!((recipes, brackets), (480, 300));
         assert_eq!(earnable, 940);
         assert!(earnable >= recipes + brackets);
     }

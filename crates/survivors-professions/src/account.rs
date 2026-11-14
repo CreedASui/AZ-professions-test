@@ -309,7 +309,8 @@ mod tests {
 
     #[test]
     fn a_recipe_needs_the_one_before_it() {
-        let (mut a, cat) = rich(100);
+        let (mut a, cat) = rich(150);
+        a.unlock(Bracket::Journeyman, &cat).unwrap();
         let wand = &PROFESSIONS[ENCHANTING].recipes[0];
         assert_eq!(
             a.craft(ENCHANTING, 1, &cat),
@@ -333,7 +334,7 @@ mod tests {
         let (mut a, cat) = rich(50);
         assert_eq!(a.points_available(&cat), 50);
         a.craft(ENCHANTING, 0, &cat).unwrap();
-        a.craft(ENCHANTING, 1, &cat).unwrap();
+        a.craft(ENGINEERING, 0, &cat).unwrap();
         assert_eq!((a.points_spent(), a.points_available(&cat)), (40, 10));
         assert_eq!(
             a.craft(BLACKSMITHING, 0, &cat),
@@ -389,17 +390,16 @@ mod tests {
             a.craft(ENGINEERING, 1, &cat).map(|r| r.key),
             Ok("coarse-dynamite")
         );
-        // Heavy Dynamite is Journeyman too; Solid Dynamite needs Expert.
-        a.craft(ENGINEERING, 2, &cat).unwrap();
+        // Solid Dynamite, the next step, needs Expert.
         assert_eq!(
-            a.craft(ENGINEERING, 3, &cat),
+            a.craft(ENGINEERING, 2, &cat),
             Err(CraftError::NeedsBracket(Bracket::Expert))
         );
-        assert_eq!(a.bonuses().area, 0.30);
-        assert_eq!(a.points_spent(), 3 * 20 + 50);
+        assert_eq!(a.bonuses().area, 0.20);
+        assert_eq!(a.points_spent(), 2 * 20 + 50);
     }
 
-    /// Everything the achievements can give buys everything there is.
+    /// Everything the achievements can give buys everything there is, with points to spare.
     #[test]
     fn the_whole_catalog_buys_every_bracket_and_recipe() {
         let cat = catalog(CLASSES, ZONES);
@@ -413,9 +413,10 @@ mod tests {
                 a.craft(p, t, &cat).unwrap();
             }
         }
-        assert_eq!(a.points_available(&cat), 0);
+        assert_eq!(a.points_spent(), 780);
+        assert_eq!(a.points_available(&cat), total - 780);
         let b = a.bonuses();
-        assert_eq!((b.luck, b.area, b.damage), (30.0, 0.5, 0.25));
+        assert_eq!((b.luck, b.area, b.damage), (20.0, 0.4, 0.2));
     }
 
     #[test]
@@ -424,6 +425,7 @@ mod tests {
         assert!(a.bonuses().is_empty());
         a.craft(ENCHANTING, 0, &cat).unwrap();
         assert_eq!(a.bonuses().luck, 5.0);
+        a.unlock(Bracket::Journeyman, &cat).unwrap();
         a.craft(ENCHANTING, 1, &cat).unwrap();
         a.craft(ENGINEERING, 0, &cat).unwrap();
         let b = a.bonuses();
@@ -436,7 +438,7 @@ mod tests {
 
     #[test]
     fn a_gap_in_the_chain_gives_nothing_above_it() {
-        // Only reachable by editing the save: the top dynamite without the four below it.
+        // Only reachable by editing the save: the top dynamite without the three below it.
         let a = Account::from_text("recipe dense-dynamite\n");
         assert_eq!(a.tier(&PROFESSIONS[ENGINEERING]), None);
         assert!(a.bonuses().is_empty());
@@ -505,9 +507,9 @@ mod tests {
             &cat,
         );
         a.craft(ENCHANTING, 0, &cat).unwrap();
-        a.craft(ENCHANTING, 1, &cat).unwrap();
         a.craft(ENGINEERING, 0, &cat).unwrap();
         a.unlock(Bracket::Journeyman, &cat).unwrap();
+        a.craft(ENCHANTING, 1, &cat).unwrap();
         a.craft(ENGINEERING, 1, &cat).unwrap();
         let text = a.to_text();
         assert!(text.contains("\nbracket journeyman\n"), "{text}");

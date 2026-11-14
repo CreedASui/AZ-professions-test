@@ -194,13 +194,16 @@ const fn r(key: &'static str, name: &'static str, bracket: Bracket, value: f32) 
 
 use Bracket::{Apprentice as A, Artisan as R, Expert as E, Journeyman as J};
 
-/// Every profession, in the trainer's alphabetical order. Each recipe sits in the bracket where
-/// WoW Classic teaches it (its skill level in the comment), so Rough Dynamite is Apprentice and
-/// Coarse Dynamite already needs Journeyman.
+/// Every profession, in the trainer's alphabetical order: one item per bracket, each a permanent
+/// upgrade for the whole account, like the examples the feature was asked with (Lesser Magic Wand
+/// +5 Luck, then Greater Magic Wand +10 Luck). Each item is one WoW Classic's trainers teach in
+/// that bracket, after the WoW-Professions Classic guides; the comment gives its skill level, and
+/// where the guides craft an item later than it is learned, that too (Greater Magic Wand is learned
+/// at 70 and crafted at 101-110, so it is the Journeyman step).
 ///
-/// 32 recipes at 20 points and the brackets' 300 come to 940, what the achievements give with the
-/// game's 9 classes and 16 zones: a player who does everything can unlock everything, and anyone
-/// else chooses what to learn first.
+/// 24 items at 20 points and the brackets' 300 come to 780, of the 940 the achievements give with
+/// the game's 9 classes and 16 zones: a player who does everything can unlock everything with
+/// points to spare, and anyone else chooses what to learn first.
 #[rustfmt::skip]
 pub static PROFESSIONS: &[Profession] = &[
     Profession {
@@ -209,12 +212,10 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 2259,
         stat: BonusStat::MaxHealth,
         recipes: &[
-            r("minor-healing-potion", "Minor Healing Potion", A, 0.05),       // skill 1
-            r("lesser-healing-potion", "Lesser Healing Potion", A, 0.10),     // 55
-            r("healing-potion", "Healing Potion", J, 0.20),                   // 110
-            r("greater-healing-potion", "Greater Healing Potion", E, 0.30),   // 155
-            r("superior-healing-potion", "Superior Healing Potion", E, 0.40), // 215
-            r("major-healing-potion", "Major Healing Potion", R, 0.50),       // 275
+            r("minor-healing-potion", "Minor Healing Potion", A, 0.10),     // skill 1
+            r("healing-potion", "Healing Potion", J, 0.20),                 // 110
+            r("greater-healing-potion", "Greater Healing Potion", E, 0.30), // 155
+            r("major-healing-potion", "Major Healing Potion", R, 0.40),     // 275
         ],
     },
     Profession {
@@ -223,11 +224,10 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 2018,
         stat: BonusStat::Damage,
         recipes: &[
-            r("rough-sharpening-stone", "Rough Sharpening Stone", A, 0.05),   // 1
-            r("coarse-sharpening-stone", "Coarse Sharpening Stone", A, 0.10), // 65
-            r("heavy-sharpening-stone", "Heavy Sharpening Stone", J, 0.15),   // 125
-            r("solid-sharpening-stone", "Solid Sharpening Stone", E, 0.20),   // 200
-            r("dense-sharpening-stone", "Dense Sharpening Stone", R, 0.25),   // 250
+            r("rough-sharpening-stone", "Rough Sharpening Stone", A, 0.05), // 1
+            r("heavy-sharpening-stone", "Heavy Sharpening Stone", J, 0.10), // 125
+            r("solid-sharpening-stone", "Solid Sharpening Stone", E, 0.15), // 200
+            r("dense-sharpening-stone", "Dense Sharpening Stone", R, 0.20), // 250
         ],
     },
     Profession {
@@ -236,12 +236,10 @@ pub static PROFESSIONS: &[Profession] = &[
         icon_spell: 7411,
         stat: BonusStat::Luck,
         recipes: &[
-            r("lesser-magic-wand", "Lesser Magic Wand", A, 5.0),     // 10
-            r("greater-magic-wand", "Greater Magic Wand", A, 10.0),  // 70
-            r("runed-silver-rod", "Runed Silver Rod", J, 15.0),      // 100
-            r("lesser-mystic-wand", "Lesser Mystic Wand", E, 20.0),  // 155
-            r("greater-mystic-wand", "Greater Mystic Wand", E, 25.0), // 175
-            r("runed-arcanite-rod", "Runed Arcanite Rod", R, 30.0),  // 285
+            r("lesser-magic-wand", "Lesser Magic Wand", A, 5.0),      // 10
+            r("greater-magic-wand", "Greater Magic Wand", J, 10.0),   // 70, crafted 101-110
+            r("greater-mystic-wand", "Greater Mystic Wand", E, 15.0), // 175
+            r("runed-arcanite-rod", "Runed Arcanite Rod", R, 20.0),   // 285
         ],
     },
     Profession {
@@ -251,10 +249,9 @@ pub static PROFESSIONS: &[Profession] = &[
         stat: BonusStat::Area,
         recipes: &[
             r("rough-dynamite", "Rough Dynamite", A, 0.10),   // 30
-            r("coarse-dynamite", "Coarse Dynamite", J, 0.20), // 75
-            r("heavy-dynamite", "Heavy Dynamite", J, 0.30),   // 125
-            r("solid-dynamite", "Solid Dynamite", E, 0.40),   // 175
-            r("dense-dynamite", "Dense Dynamite", R, 0.50),   // 250
+            r("coarse-dynamite", "Coarse Dynamite", J, 0.20), // 75, crafted 90-100
+            r("solid-dynamite", "Solid Dynamite", E, 0.30),   // 175
+            r("dense-dynamite", "Dense Dynamite", R, 0.40),   // 250
         ],
     },
     Profession {
@@ -266,8 +263,7 @@ pub static PROFESSIONS: &[Profession] = &[
             r("light-armor-kit", "Light Armor Kit", A, 0.5),   // 1
             r("medium-armor-kit", "Medium Armor Kit", J, 1.0), // 100
             r("heavy-armor-kit", "Heavy Armor Kit", E, 1.5),   // 150
-            r("thick-armor-kit", "Thick Armor Kit", E, 2.0),   // 200
-            r("rugged-armor-kit", "Rugged Armor Kit", R, 2.5), // 250
+            r("rugged-armor-kit", "Rugged Armor Kit", R, 2.0), // 250
         ],
     },
     Profession {
@@ -279,8 +275,7 @@ pub static PROFESSIONS: &[Profession] = &[
             r("linen-bag", "Linen Bag", A, 0.20),             // 45
             r("woolen-bag", "Woolen Bag", J, 0.40),           // 80
             r("small-silk-pack", "Small Silk Pack", E, 0.60), // 150
-            r("mageweave-bag", "Mageweave Bag", R, 0.80),     // 240
-            r("runecloth-bag", "Runecloth Bag", R, 1.00),     // 260
+            r("runecloth-bag", "Runecloth Bag", R, 0.80),     // 260
         ],
     },
 ];
@@ -347,27 +342,17 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
+    /// One item per bracket, Apprentice to Artisan, each better than the last.
     #[test]
-    fn every_chain_only_improves_and_climbs_the_brackets() {
+    fn every_profession_has_one_item_per_bracket_each_better() {
         assert_eq!(PROFESSIONS.len(), 6);
         for p in PROFESSIONS {
-            assert!(p.recipes.len() >= 5, "{}", p.name);
-            assert_eq!(p.recipes[0].bracket, Bracket::Apprentice, "{}", p.name);
-            assert_eq!(
-                p.recipes.last().unwrap().bracket,
-                Bracket::Artisan,
-                "{}",
-                p.name
-            );
+            let brackets: Vec<Bracket> = p.recipes.iter().map(|r| r.bracket).collect();
+            assert_eq!(brackets, Bracket::ALL, "{}", p.name);
             for pair in p.recipes.windows(2) {
                 assert!(
                     pair[1].value > pair[0].value,
                     "{} must improve",
-                    pair[1].name
-                );
-                assert!(
-                    pair[1].bracket >= pair[0].bracket,
-                    "{} is out of order",
                     pair[1].name
                 );
             }
@@ -375,16 +360,8 @@ mod tests {
     }
 
     #[test]
-    fn every_bracket_has_recipes_and_climbs_in_cost() {
+    fn brackets_climb_in_cost_and_order() {
         for b in Bracket::ALL {
-            assert!(
-                PROFESSIONS
-                    .iter()
-                    .flat_map(|p| p.recipes)
-                    .any(|r| r.bracket == b),
-                "{} has no recipes",
-                b.name()
-            );
             assert_eq!(Bracket::from_key(b.key()), Some(b));
         }
         // The costs asked for: Journeyman 50, Expert 100, and on in steps of 50.
@@ -426,6 +403,7 @@ mod tests {
         assert_eq!(PROFESSIONS[p].stat.format(wand.value), "+5 Luck");
         let (_, t, greater) = find_recipe("greater-magic-wand").unwrap();
         assert_eq!((t, greater.cost, greater.value), (1, 20, 10.0));
+        assert_eq!(greater.bracket, Bracket::Journeyman);
 
         let (p, t, rough) = find_recipe("rough-dynamite").unwrap();
         assert_eq!((PROFESSIONS[p].name, t), ("Engineering", 0));
@@ -435,7 +413,6 @@ mod tests {
             "+10% Area of effect"
         );
         let (_, t, coarse) = find_recipe("coarse-dynamite").unwrap();
-        // A skill 75 recipe in Classic: Journeyman.
         assert_eq!(
             (t, coarse.cost, coarse.bracket),
             (1, 20, Bracket::Journeyman)
